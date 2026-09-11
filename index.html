@@ -308,7 +308,7 @@
         let db;
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB", 30);
+            let request = indexedDB.open("SalesSystemDB", 31);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -338,7 +338,7 @@
                 tableHeaders = [];
                 displayedRowsData = [];
                 exportableRowsData = [];
-                document.getElementById('tableHeaderinnerHTML = ""');
+                document.getElementById('tableHeader').innerHTML = "";
                 document.getElementById('tableBody').innerHTML = "";
                 document.getElementById('rowCount').innerText = "عدد النتائج المعروضة: 0";
                 document.getElementById('statusText').innerText = "🗑️ تم مسح الذاكرة المؤقتة بنجاح. يرجى اختيار الملف الجديد.";
@@ -608,12 +608,10 @@
 
         function openComparisonWindow() {
             if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير المقارنة!"); return; }
-            // باقي وظائف النوافذ كما هي
         }
 
         function openClientComparisonWindow() {
             if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء!"); return; }
-            // باقي وظائف النوافذ كما هي
         }
     </script>
 </body>
