@@ -158,7 +158,6 @@
         .btn-excel { background-color: var(--success-color); }
         .btn-pdf { background-color: #0284c7; }
         .btn-print { background-color: #4f46e5; }
-        .btn-clear-cache { background-color: #dc2626; }
         .btn-compare { background-color: #d97706; font-size: 12px; padding: 8px 14px; }
         .btn-compare-client { background-color: #0d9488; font-size: 12px; padding: 8px 14px; }
 
@@ -243,10 +242,9 @@
             <div>
                 <span id="statusText">📂 جاري التحقق من وجود بيانات مخزنة مسبقاً...</span>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <button class="action-btn btn-clear-cache" onclick="clearDBCache()" title="مسح البيانات القديمة المخزنة مؤقتاً">🗑️ مسح الذاكرة المؤقتة</button>
+            <div>
                 <label for="excelFileinput" class="custom-file-upload" id="uploadLabel">
-                    📁 اختيار ملف الاكسيل (Excel)
+                    📁 رفع واختيار ملف الاكسيل الجديد
                 </label>
                 <input type="file" id="excelFileinput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)">
             </div>
@@ -285,7 +283,7 @@
         <div class="actions-bar">
             <button class="action-btn btn-reset" onclick="resetFilter()">🔄 إعادة ضبط كافة الفلاتر</button>
             <button class="action-btn btn-excel" onclick="exportToExcel()">📊 تصدير Excel (بدون مرتجعات)</button>
-            <button class="action-btn btn-pdf" onclick="exportToPDFFile()">📥 تصدير PDF بالعرض</button>
+            <button class="action-btn btn-pdf" onclick="exportToPDFFile()">📥 تصدير PDF (احتواء تلقائي Shrink to Fit)</button>
             <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة التقرير</button>
         </div>
 
@@ -308,7 +306,7 @@
         let db;
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB", 31);
+            let request = indexedDB.open("SalesSystemDB", 35);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -325,26 +323,8 @@
             if (!db) return;
             let transaction = db.transaction(["files"], "readwrite");
             let store = transaction.objectStore("files");
+            // استخدام مفتاح موحد وتحديث البيانات القديمة بالجديدة تماماً
             store.put({ headers: headers, data: data, name: fileName }, "excelFile");
-        }
-
-        function clearDBCache() {
-            if (!db) return;
-            let transaction = db.transaction(["files"], "readwrite");
-            let store = transaction.objectStore("files");
-            let request = store.clear();
-            request.onsuccess = function() {
-                globalAllData = [];
-                tableHeaders = [];
-                displayedRowsData = [];
-                exportableRowsData = [];
-                document.getElementById('tableHeader').innerHTML = "";
-                document.getElementById('tableBody').innerHTML = "";
-                document.getElementById('rowCount').innerText = "عدد النتائج المعروضة: 0";
-                document.getElementById('statusText').innerText = "🗑️ تم مسح الذاكرة المؤقتة بنجاح. يرجى اختيار الملف الجديد.";
-                document.getElementById('uploadLabel').innerText = "📁 اختيار ملف الاكسيل (Excel)";
-                alert("تم تفريغ البيانات القديمة بنجاح، يمكنك الآن رفع الملف المحدث.");
-            };
         }
 
         function loadStoredData() {
@@ -361,7 +341,7 @@
                     displayedRowsData = [...globalAllData];
                     exportableRowsData = [...globalAllData];
                     document.getElementById('statusText').innerText = `⚡ تم استرجاع الملف المخزن بنجاح (${globalAllData.length} سجل).`;
-                    document.getElementById('uploadLabel').innerText = '📁 استبدال الملف';
+                    document.getElementById('uploadLabel').innerText = '📁 استبدال الملف بآخر جديد';
                     renderTable();
                 } else {
                     document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل الخاص بالبيانات للبدء...`;
@@ -430,10 +410,14 @@
                         globalAllData = cleanRows.slice(1);
                         displayedRowsData = [...globalAllData];
                         exportableRowsData = [...globalAllData];
+                        
+                        // حفظ واستبدال البيانات القديمة فورا بأحدث نسخة
                         saveToDB(tableHeaders, globalAllData, file.name);
-                        document.getElementById('statusText').innerText = `⚡ تم تحميل وحفظ الملف بنجاح (${globalAllData.length} سجل).`;
-                        document.getElementById('uploadLabel').innerText = '📁 استبدال الملف';
+
+                        document.getElementById('statusText').innerText = `⚡ تم تحديث وحفظ الملف الجديد بنجاح (${globalAllData.length} سجل).`;
+                        document.getElementById('uploadLabel').innerText = '📁 استبدال الملف بآخر جديد';
                         renderTable();
+                        alert("تم تحديث البيانات بنجاح وعرض أحدث نسخة!");
                     } else {
                         alert("الملف المختار فارغ!");
                     }
@@ -600,7 +584,14 @@
             if (exportableRowsData.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
             document.getElementById('printTitleHeader').style.display = 'block';
             let element = document.getElementById('reportContent');
-            let opt = { margin: 5, filename: getDynamicReportTitle() + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+            // خاصية Shrink to Fit (احتواء تلقائي للصفحة بعرض A4)
+            let opt = { 
+                margin: [5, 5, 5, 5], 
+                filename: getDynamicReportTitle() + '.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 1.5, useCORS: true, letterRendering: true }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape', compress: true } 
+            };
             html2pdf().from(element).set(opt).save().then(() => { document.getElementById('printTitleHeader').style.display = 'none'; });
         }
 
