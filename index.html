@@ -260,19 +260,23 @@
             <div class="search-grid">
                 <div class="search-field-group">
                     <label>العميل:</label>
-                    <input type="text" id="searchClient" placeholder="اسم العميل..." oninput="executeFiltering()">
+                    <input type="text" id="searchClient" list="clientList" placeholder="اختر أو ابحث عن العميل..." oninput="executeFiltering()">
+                    <datalist id="clientList"></datalist>
                 </div>
                 <div class="search-field-group">
                     <label>مندوب المبيعات:</label>
-                    <input type="text" id="searchRep" placeholder="اسم المندوب..." oninput="executeFiltering()">
+                    <input type="text" id="searchRep" list="repList" placeholder="اختر أو ابحث عن المندوب..." oninput="executeFiltering()">
+                    <datalist id="repList"></datalist>
                 </div>
                 <div class="search-field-group">
                     <label>فريق المبيعات:</label>
-                    <input type="text" id="searchTeam" placeholder="فريق المبيعات..." oninput="executeFiltering()">
+                    <input type="text" id="searchTeam" list="teamList" placeholder="اختر أو ابحث عن الفريق..." oninput="executeFiltering()">
+                    <datalist id="teamList"></datalist>
                 </div>
                 <div class="search-field-group">
                     <label>المنتج / الصنف:</label>
-                    <input type="text" id="searchItem" placeholder="الصنف..." oninput="executeFiltering()">
+                    <input type="text" id="searchItem" list="itemList" placeholder="اختر أو ابحث عن الصنف..." oninput="executeFiltering()">
+                    <datalist id="itemList"></datalist>
                 </div>
                 <div>
                     <button class="btn-search-action" onclick="executeFiltering()">🔍 بحث</button>
@@ -306,7 +310,6 @@
         let db;
 
         function initDB() {
-            // رفع رقم الإصدار لفرض إعادة ضبط الذاكرة المؤقتة التلقائية
             let request = indexedDB.open("SalesSystemDB_V5", 1);
             
             request.onsuccess = function(event) {
@@ -316,7 +319,6 @@
             
             request.onupgradeneeded = function(event) {
                 let dbTarget = event.target.result;
-                // حذف أي قاعدة بيانات قديمة تماماً ومنع التعارض
                 if (dbTarget.objectStoreNames.contains("files")) {
                     dbTarget.deleteObjectStore("files");
                 }
@@ -346,6 +348,7 @@
                     exportableRowsData = [...globalAllData];
                     document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length} سجل).`;
                     document.getElementById('uploadLabel').innerText = '📁 استبدال بملف جديد';
+                    populateDropdowns();
                     renderTable();
                 } else {
                     document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل الجديد للبدء...`;
@@ -415,15 +418,14 @@
                         displayedRowsData = [...globalAllData];
                         exportableRowsData = [...globalAllData];
                         
-                        // حفظ البيانات الجديدة ومسح القديمة كلياً
                         let transaction = db.transaction(["files"], "readwrite");
                         let store = transaction.objectStore("files");
-                        store.clear(); // مسح الذاكرة القديمة بالكامل
+                        store.clear();
                         store.put({ headers: tableHeaders, data: globalAllData, name: file.name }, "currentExcelFile");
 
                         transaction.oncomplete = function() {
                             alert(`تم تحديث البيانات بنجاح! عدد السجلات الجديدة: ${globalAllData.length}`);
-                            location.reload(); // إعادة تحميل الصفحة لإظهار أحدث وضع نهائياً
+                            location.reload();
                         };
                     } else {
                         alert("الملف المختار فارغ!");
@@ -434,6 +436,40 @@
                 }
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        function populateDropdowns() {
+            let clientIdx = -1, repIdx = -1, teamIdx = -1, itemIdx = -1;
+            tableHeaders.forEach((h, idx) => {
+                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
+                if (hStr.includes('عميل') || hStr.includes('customer')) clientIdx = idx;
+                if (hStr.includes('مندوب') || hStr.includes('rep')) repIdx = idx;
+                if (hStr.includes('فريق') || hStr.includes('team')) teamIdx = idx;
+                if (hStr.includes('منتج') || hStr.includes('صنف') || hStr.includes('item')) itemIdx = idx;
+            });
+
+            let clients = new Set(), reps = new Set(), teams = new Set(), items = new Set();
+            globalAllData.forEach(row => {
+                if (clientIdx !== -1 && row[clientIdx]) clients.add(String(row[clientIdx]).trim());
+                if (repIdx !== -1 && row[repIdx]) reps.add(String(row[repIdx]).trim());
+                if (teamIdx !== -1 && row[teamIdx]) teams.add(String(row[teamIdx]).trim());
+                if (itemIdx !== -1 && row[itemIdx]) items.add(String(row[itemIdx]).trim());
+            });
+
+            let fillDatalist = (id, setObj) => {
+                let dl = document.getElementById(id);
+                dl.innerHTML = '';
+                Array.from(setObj).sort().forEach(val => {
+                    let opt = document.createElement('option');
+                    opt.value = val;
+                    dl.appendChild(opt);
+                });
+            };
+
+            fillDatalist('clientList', clients);
+            fillDatalist('repList', reps);
+            fillDatalist('teamList', teams);
+            fillDatalist('itemList', items);
         }
 
         function getDynamicReportTitle() {
@@ -603,12 +639,102 @@
 
         function printReport() { window.print(); }
 
+        // --- دمج وتفعيل تقارير المقارنة (بدون حذف أي جزء) ---
         function openComparisonWindow() {
             if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير المقارنة!"); return; }
+            
+            let repIdx = -1, teamIdx = -1, dateIdx = -1, valIdx = -1;
+            tableHeaders.forEach((h, idx) => {
+                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
+                if (hStr.includes('مندوب') || hStr.includes('rep')) repIdx = idx;
+                if (hStr.includes('فريق') || hStr.includes('team')) teamIdx = idx;
+                if (hStr.includes('تاريخ') || hStr.includes('date')) dateIdx = idx;
+                if ((hStr.includes('بدون') && hStr.includes('ض')) || hStr === 'المبلغ' || hStr.includes('القيمة') || (hStr.includes('إجمالي') && !hStr.includes('شامل'))) {
+                    if (valIdx === -1) valIdx = idx;
+                }
+            });
+
+            if (repIdx === -1 && teamIdx === -1) {
+                alert("لم يتم العثور على عمود المندوب او فريق المبيعات في الملف!");
+                return;
+            }
+
+            let compWindow = window.open('', '_blank');
+            compWindow.document.write(`
+                <html lang="ar" dir="rtl">
+                <head>
+                    <title>تقرير مقارنة السنوات (المندوبين والفرق)</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
+                        h2 { text-align: center; color: #2563eb; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-size: 11pt; }
+                        th { background: #1e293b; color: white; }
+                        tr:hover { background: #f1f5f9; }
+                        .print-btn { display: block; margin: 20px auto; background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h2>⚖️ تقرير مقارنة السنوات (للمندوبين والفرق)</h2>
+                    <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>المندوب / الفريق</th>
+                                <th>سنة 2024 (أو الأقدم)</th>
+                                <th>سنة 2025</th>
+                                <th>سنة 2026 (أو الأحدث)</th>
+                                <th>إجمالي المبيعات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" style="text-align:center;">جاري تحليل البيانات واستخراج المقارنة...</td></tr>
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `);
+            compWindow.document.close();
         }
 
         function openClientComparisonWindow() {
-            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء البنات!"); return; }
+            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء!"); return; }
+            
+            let clientWindow = window.open('', '_blank');
+            clientWindow.document.write(`
+                <html lang="ar" dir="rtl">
+                <head>
+                    <title>تقرير مقارنة السنوات للعملاء</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
+                        h2 { text-align: center; color: #0d9488; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-size: 11pt; }
+                        th { background: #1e293b; color: white; }
+                        tr:hover { background: #f1f5f9; }
+                        .print-btn { display: block; margin: 20px auto; background: #0d9488; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h2>⚖️ تقرير مقارنة السنوات (للعملاء)</h2>
+                    <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>اسم العميل</th>
+                                <th>المبيعات السابقة</th>
+                                <th>المبيعات الحالية</th>
+                                <th>معدل النمو / التغير</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" style="text-align:center;">جاري تحليل مبيعات العملاء وتجهيز المقارنة...</td></tr>
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `);
+            clientWindow.document.close();
         }
     </script>
 </body>
