@@ -240,11 +240,11 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">📂 جاري التحقق من وجود بيانات مخزنة مسبقاً...</span>
+                <span id="statusText">📂 جاري تهيئة النظام والتحقق من البيانات...</span>
             </div>
             <div>
                 <label for="excelFileinput" class="custom-file-upload" id="uploadLabel">
-                    📁 رفع واختيار ملف الاكسيل الجديد
+                    📁 رفع واستبدال ملف الاكسيل المحدث
                 </label>
                 <input type="file" id="excelFileinput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)">
             </div>
@@ -306,16 +306,21 @@
         let db;
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB", 35);
+            // رفع رقم الإصدار لفرض إعادة ضبط الذاكرة المؤقتة التلقائية
+            let request = indexedDB.open("SalesSystemDB_V5", 1);
+            
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
             };
+            
             request.onupgradeneeded = function(event) {
                 let dbTarget = event.target.result;
-                if (!dbTarget.objectStoreNames.contains("files")) {
-                    dbTarget.createObjectStore("files");
+                // حذف أي قاعدة بيانات قديمة تماماً ومنع التعارض
+                if (dbTarget.objectStoreNames.contains("files")) {
+                    dbTarget.deleteObjectStore("files");
                 }
+                dbTarget.createObjectStore("files");
             };
         }
 
@@ -323,15 +328,14 @@
             if (!db) return;
             let transaction = db.transaction(["files"], "readwrite");
             let store = transaction.objectStore("files");
-            // استخدام مفتاح موحد وتحديث البيانات القديمة بالجديدة تماماً
-            store.put({ headers: headers, data: data, name: fileName }, "excelFile");
+            store.put({ headers: headers, data: data, name: fileName }, "currentExcelFile");
         }
 
         function loadStoredData() {
             if (!db) return;
             let transaction = db.transaction(["files"], "readonly");
             let store = transaction.objectStore("files");
-            let request = store.get("excelFile");
+            let request = store.get("currentExcelFile");
 
             request.onsuccess = function(event) {
                 let result = event.target.result;
@@ -340,11 +344,11 @@
                     globalAllData = result.data;
                     displayedRowsData = [...globalAllData];
                     exportableRowsData = [...globalAllData];
-                    document.getElementById('statusText').innerText = `⚡ تم استرجاع الملف المخزن بنجاح (${globalAllData.length} سجل).`;
-                    document.getElementById('uploadLabel').innerText = '📁 استبدال الملف بآخر جديد';
+                    document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length} سجل).`;
+                    document.getElementById('uploadLabel').innerText = '📁 استبدال بملف جديد';
                     renderTable();
                 } else {
-                    document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل الخاص بالبيانات للبدء...`;
+                    document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل الجديد للبدء...`;
                 }
             };
         }
@@ -411,13 +415,16 @@
                         displayedRowsData = [...globalAllData];
                         exportableRowsData = [...globalAllData];
                         
-                        // حفظ واستبدال البيانات القديمة فورا بأحدث نسخة
-                        saveToDB(tableHeaders, globalAllData, file.name);
+                        // حفظ البيانات الجديدة ومسح القديمة كلياً
+                        let transaction = db.transaction(["files"], "readwrite");
+                        let store = transaction.objectStore("files");
+                        store.clear(); // مسح الذاكرة القديمة بالكامل
+                        store.put({ headers: tableHeaders, data: globalAllData, name: file.name }, "currentExcelFile");
 
-                        document.getElementById('statusText').innerText = `⚡ تم تحديث وحفظ الملف الجديد بنجاح (${globalAllData.length} سجل).`;
-                        document.getElementById('uploadLabel').innerText = '📁 استبدال الملف بآخر جديد';
-                        renderTable();
-                        alert("تم تحديث البيانات بنجاح وعرض أحدث نسخة!");
+                        transaction.oncomplete = function() {
+                            alert(`تم تحديث البيانات بنجاح! عدد السجلات الجديدة: ${globalAllData.length}`);
+                            location.reload(); // إعادة تحميل الصفحة لإظهار أحدث وضع نهائياً
+                        };
                     } else {
                         alert("الملف المختار فارغ!");
                     }
@@ -584,7 +591,6 @@
             if (exportableRowsData.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
             document.getElementById('printTitleHeader').style.display = 'block';
             let element = document.getElementById('reportContent');
-            // خاصية Shrink to Fit (احتواء تلقائي للصفحة بعرض A4)
             let opt = { 
                 margin: [5, 5, 5, 5], 
                 filename: getDynamicReportTitle() + '.pdf', 
@@ -602,7 +608,7 @@
         }
 
         function openClientComparisonWindow() {
-            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء!"); return; }
+            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء البنات!"); return; }
         }
     </script>
 </body>
