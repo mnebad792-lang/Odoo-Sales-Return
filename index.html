@@ -153,7 +153,7 @@
         .btn-excel { background-color: var(--success-color); }
         .btn-pdf { background-color: #0284c7; }
         .btn-print { background-color: #4f46e5; }
-        .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
+        .btn-compare { background-color: var(--d97706); font-size: 11px; padding: 7px 12px; background: #d97706; }
 
         .table-container {
             width: 100%;
@@ -167,16 +167,19 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;
+            table-layout: auto; /* احتواء الخلايا والبيانات بالعرض */
         }
 
         th, td {
-            padding: 4px 3px;
+            padding: 3px 4px;
             text-align: center;
             border-bottom: 1px solid #e2e8f0;
             border-left: 1px solid #e2e8f0;
-            font-size: 8pt !important;
+            font-size: 7.5pt !important;
             white-space: nowrap;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         th {
@@ -193,7 +196,7 @@
             font-weight: bold !important;
             color: #0f172a !important;
             text-align: right !important;
-            font-size: 9pt !important;
+            font-size: 8.5pt !important;
             border-top: 2px solid #94a3b8;
         }
 
@@ -360,7 +363,7 @@
         let detectedIndices = { teamIdx: -1, repIdx: -1, dateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V14", 1);
+            let request = indexedDB.open("SalesSystemDB_V15", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -405,7 +408,6 @@
                 if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي')) detectedIndices.valIdx = idx;
                 if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) detectedIndices.invoiceColIndex = idx;
             });
-            // Defaults if not found
             if (detectedIndices.teamIdx === -1) detectedIndices.teamIdx = 0;
             if (detectedIndices.repIdx === -1) detectedIndices.repIdx = 1;
             if (detectedIndices.dateIdx === -1) detectedIndices.dateIdx = 2;
@@ -420,6 +422,8 @@
                 return new Date(utcDays * 86400 * 1000);
             }
             let strVal = String(val).trim();
+            // إزالة أي زوائد مثل (Arabian Standard Time)
+            strVal = strVal.replace(/\(.*\)/g, '').trim();
             let parts = strVal.split(/[\/\-\.]/);
             if (parts.length === 3) {
                 if (parts[0].length === 4) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -428,6 +432,15 @@
             let parsed = new Date(strVal);
             if (!isNaN(parsed)) return parsed;
             return null;
+        }
+
+        function formatDateClean(val) {
+            let d = parseRowDate(val);
+            if (!d) return val !== undefined ? val : '';
+            let yy = d.getFullYear();
+            let mm = String(d.getMonth() + 1).padStart(2, '0');
+            let dd = String(d.getDate()).padStart(2, '0');
+            return `${yy}-${mm}-${dd}`;
         }
 
         function handleExcelUpload(e) {
@@ -489,17 +502,25 @@
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
 
-            let chunkSize = 1000;
+            let chunkSize = 500;
             let index = 0;
             let tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
+
+            let dateIdx = detectedIndices.dateIdx;
 
             function appendChunk() {
                 let chunk = rowsToRender.slice(index, index + chunkSize);
                 let bodyHtml = '';
                 chunk.forEach(row => {
                     bodyHtml += '<tr>';
-                    row.forEach(cell => bodyHtml += `<td>${cell !== undefined ? cell : ''}</td>`);
+                    row.forEach((cell, cellIdx) => {
+                        let displayVal = cell;
+                        if (cellIdx === dateIdx) {
+                            displayVal = formatDateClean(cell);
+                        }
+                        bodyHtml += `<td title="${displayVal !== undefined ? displayVal : ''}">${displayVal !== undefined ? displayVal : ''}</td>`;
+                    });
                     bodyHtml += '</tr>';
                 });
                 tbody.insertAdjacentHTML('beforeend', bodyHtml);
@@ -519,13 +540,12 @@
             let yearQ = document.getElementById('filterYear').value.trim();
             let monthQ = document.getElementById('filterMonth').value.trim();
 
-            let clientIdx = -1, repIdx = -1, teamIdx = -1, dateIdx = -1;
+            let clientIdx = -1, repIdx = -1, teamIdx = -1, dateIdx = detectedIndices.dateIdx;
             tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
                 if (hStr.includes('عميل') || hStr.includes('customer')) clientIdx = idx;
                 if (hStr.includes('مندوب') || hStr.includes('rep')) repIdx = idx;
                 if (hStr.includes('فريق') || hStr.includes('team')) teamIdx = idx;
-                if (hStr.includes('تاريخ') || hStr.includes('date')) dateIdx = idx;
             });
 
             let filtered = globalAllData.filter(row => {
