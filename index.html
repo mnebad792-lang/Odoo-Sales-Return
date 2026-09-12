@@ -159,7 +159,7 @@
         .table-container {
             width: 100%;
             overflow-x: auto;
-            max-height: 550px;
+            max-height: 600px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             background: white;
@@ -314,7 +314,7 @@
             <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة</button>
         </div>
 
-        <div class="row-count" id="rowCount">عدد السجلات: 0</div>
+        <div class="row-count" id="rowCount">عدد السجلات الإجمالي: 0</div>
 
         <div class="table-container">
             <table id="mainTable">
@@ -410,7 +410,7 @@
         let currentReportConfig = { teamIdx: 0, repIdx: 0, dateIdx: 0, valIdx: 0, invoiceColIndex: -1 };
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V12", 1);
+            let request = indexedDB.open("SalesSystemDB_V13", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -433,10 +433,10 @@
                 if (result && result.data && result.data.length > 0) {
                     tableHeaders = result.headers;
                     globalAllData = result.data;
-                    document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length} سجل).`;
+                    document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length.toLocaleString()} سجل).`;
                     document.getElementById('uploadLabel').innerText = '📁 استبدال بملف جديد';
                     extractYears();
-                    renderStandardTable();
+                    renderTableRows(globalAllData);
                 } else {
                     document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل للبدء...`;
                 }
@@ -519,21 +519,35 @@
             popupYearSelect.innerHTML = yearsHtml;
         }
 
-        function renderStandardTable() {
+        function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             let headerHtml = '<tr>';
             tableHeaders.forEach(h => headerHtml += `<th>${h}</th>`);
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
 
-            let bodyHtml = '';
-            globalAllData.slice(0, 500).forEach(row => {
-                bodyHtml += '<tr>';
-                row.forEach(cell => bodyHtml += `<td>${cell !== undefined ? cell : ''}</td>`);
-                bodyHtml += '</tr>';
-            });
-            document.getElementById('tableBody').innerHTML = bodyHtml;
-            document.getElementById('rowCount').innerText = `عدد السجلات المعروضة: ${Math.min(globalAllData.length, 500)}`;
+            // استخدام تقسيم وتجميع النص لمنع تعليق المتصفح مع الملفات الضخمة
+            let chunkSize = 1000;
+            let index = 0;
+            let tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            function appendChunk() {
+                let chunk = rowsToRender.slice(index, index + chunkSize);
+                let bodyHtml = '';
+                chunk.forEach(row => {
+                    bodyHtml += '<tr>';
+                    row.forEach(cell => bodyHtml += `<td>${cell !== undefined ? cell : ''}</td>`);
+                    bodyHtml += '</tr>';
+                });
+                tbody.insertAdjacentHTML('beforeend', bodyHtml);
+                index += chunkSize;
+                if (index < rowsToRender.length) {
+                    setTimeout(appendChunk, 0);
+                }
+            }
+            appendChunk();
+            document.getElementById('rowCount').innerText = `عدد السجلات المعروضة: ${rowsToRender.length.toLocaleString()}`;
         }
 
         function executeMainTableFiltering() {
@@ -566,14 +580,7 @@
                 return true;
             });
 
-            let bodyHtml = '';
-            filtered.slice(0, 500).forEach(row => {
-                bodyHtml += '<tr>';
-                row.forEach(cell => bodyHtml += `<td>${cell !== undefined ? cell : ''}</td>`);
-                bodyHtml += '</tr>';
-            });
-            document.getElementById('tableBody').innerHTML = bodyHtml;
-            document.getElementById('rowCount').innerText = `عدد السجلات المعروضة: ${filtered.length}`;
+            renderTableRows(filtered);
         }
 
         function resetFilter() {
@@ -582,7 +589,7 @@
             document.getElementById('searchTeam').value = '';
             document.getElementById('filterYear').value = '';
             document.getElementById('filterMonth').value = '';
-            renderStandardTable();
+            renderTableRows(globalAllData);
         }
 
         function promptComparisonConfig() {
