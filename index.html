@@ -101,7 +101,6 @@
         .search-field-group {
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
         .search-field-group label {
@@ -242,7 +241,7 @@
 </head>
 <body>
 
-    <div class="container" id="reportContent">
+    <div class="container">
         <h2>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</h2>
 
         <div class="upload-section">
@@ -546,263 +545,7 @@
 
         function closeModal() { document.getElementById('configModal').style.display = 'none'; }
 
-        function generateTeamsAndRepsReport() {
-            let teamIdx = Number(document.getElementById('modalTeamCol').value);
-            let repIdx = Number(document.getElementById('modalRepCol').value);
-            let dateIdx = Number(document.getElementById('modalDateCol').value);
-            let valIdx = Number(document.getElementById('modalValueCol').value);
-            let invoiceColIndex = -1;
-            tableHeaders.forEach((h, idx) => {
-                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
-                if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) invoiceColIndex = idx;
-            });
-            closeModal();
-
-            let compWindow = window.open('', '_blank');
-
-            function renderReportHTML(filterTeam = "", filterRep = "", filterYear = "", filterMonth = "") {
-                let hierarchy = {};
-                let yearsSet = new Set();
-
-                globalAllData.forEach(row => {
-                    let teamName = String(row[teamIdx] || "فريق غير محدد").trim();
-                    let repName = String(row[repIdx] || "مندوب غير محدد").trim();
-
-                    if (filterTeam && !teamName.toLowerCase().includes(filterTeam.toLowerCase())) return;
-                    if (filterRep && !repName.toLowerCase().includes(filterRep.toLowerCase())) return;
-
-                    let dObj = parseRowDate(row[dateIdx]);
-                    let year = dObj ? dObj.getFullYear() : "غير محدد";
-                    let month = dObj ? (dObj.getMonth() + 1) : "غير محدد";
-
-                    if (filterYear && String(year) !== String(filterYear)) return;
-                    if (filterMonth && String(month) !== String(filterMonth)) return;
-
-                    let amount = Number(row[valIdx]) || 0;
-                    let isReturn = false;
-                    if (invoiceColIndex !== -1 && row[invoiceColIndex]) {
-                        if (String(row[invoiceColIndex]).trim().toLowerCase().startsWith('rinv')) isReturn = true;
-                    }
-
-                    if (year !== "غير محدد") yearsSet.add(year);
-
-                    if (!hierarchy[teamName]) hierarchy[teamName] = {};
-                    if (!hierarchy[teamName][repName]) hierarchy[teamName][repName] = {};
-                    if (!hierarchy[teamName][repName][year]) hierarchy[teamName][repName][year] = { sales: 0, returns: 0 };
-
-                    if (isReturn) hierarchy[teamName][repName][year].returns += Math.abs(amount);
-                    else hierarchy[teamName][repName][year].sales += amount;
-                });
-
-                let sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
-                if (sortedYears.length === 0) sortedYears = [2025, 2026];
-
-                let topHeaderHtml = `<tr><th rowspan="2">الفريق / المندوب</th>`;
-                sortedYears.forEach(y => {
-                    topHeaderHtml += `<th colspan="3" style="background:#0284c7; border-left:3px solid #94a3b8;">سنة ${y}</th>`;
-                });
-                topHeaderHtml += `<th colspan="3" style="background:#d97706; border-left:3px solid #94a3b8;">الفرق (مقارنة)</th>`;
-                topHeaderHtml += `<th rowspan="2" style="background:#1e293b;">الاتجاه العام (نمو / انخفاض / ثبات)</th></tr>`;
-
-                let subHeaderHtml = `<tr>`;
-                sortedYears.forEach(() => {
-                    subHeaderHtml += `
-                        <th style="background:#38bdf8;">مبيعات</th>
-                        <th style="background:#f87171;">مرتجعات</th>
-                        <th style="background:#4ade80; border-left:3px solid #94a3b8;">صافي</th>
-                    `;
-                });
-                subHeaderHtml += `
-                    <th style="background:#fbbf24;">فارق مبيعات</th>
-                    <th style="background:#fca5a5;">فارق مرتجعات</th>
-                    <th style="background:#86efac; border-left:3px solid #94a3b8;">فارق صافي</th>
-                `;
-                subHeaderHtml += `</tr>`;
-
-                let tableRowsHtml = '';
-                let grandTotals = {};
-                sortedYears.forEach(y => { grandTotals[y] = { sales: 0, returns: 0 }; });
-
-                Object.keys(hierarchy).sort().forEach(team => {
-                    tableRowsHtml += `<tr class="team-group-header"><td colspan="${(sortedYears.length * 3) + 5}" style="text-align:right; padding:8px;">📁 الفريق: ${team}</td></tr>`;
-
-                    let teamTotals = {};
-                    sortedYears.forEach(y => { teamTotals[y] = { sales: 0, returns: 0 }; });
-
-                    Object.keys(hierarchy[team]).sort().forEach(rep => {
-                        tableRowsHtml += `<tr><td style="text-align:right; padding-right:20px;">👤 ${rep}</td>`;
-                        let repYearsData = hierarchy[team][rep];
-
-                        sortedYears.forEach(y => {
-                            let yData = repYearsData[y] || { sales: 0, returns: 0 };
-                            let netY = yData.sales - yData.returns;
-                            teamTotals[y].sales += yData.sales;
-                            teamTotals[y].returns += yData.returns;
-
-                            tableRowsHtml += `
-                                <td>${yData.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td style="color:#dc2626;">${yData.returns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                                <td style="font-weight:bold; color:#16a34a; border-left:3px solid #94a3b8;">${netY.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            `;
-                        });
-
-                        let diffSales = 0, diffReturns = 0, diffNet = 0;
-                        if (sortedYears.length >= 2) {
-                            let yFirst = sortedYears[0];
-                            let yLast = sortedYears[sortedYears.length - 1];
-                            let fSales = repYearsData[yLast]?.sales || 0;
-                            let fBaseSales = repYearsData[yFirst]?.sales || 0;
-                            diffSales = fSales - fBaseSales;
-
-                            let fReturns = repYearsData[yLast]?.returns || 0;
-                            let fBaseReturns = repYearsData[yFirst]?.returns || 0;
-                            diffReturns = fReturns - fBaseReturns;
-
-                            let fNet = (repYearsData[yLast]?.sales || 0) - (repYearsData[yLast]?.returns || 0);
-                            let fBaseNet = (repYearsData[yFirst]?.sales || 0) - (repYearsData[yFirst]?.returns || 0);
-                            diffNet = fNet - fBaseNet;
-                        }
-
-                        tableRowsHtml += `
-                            <td style="font-weight:bold; color:${diffSales >= 0 ? '#16a34a':'#dc2626'};">${diffSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td style="font-weight:bold; color:${diffReturns <= 0 ? '#16a34a':'#dc2626'};">${diffReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td style="font-weight:bold; color:${diffNet >= 0 ? '#16a34a':'#dc2626'}; border-left:3px solid #94a3b8;">${diffNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        `;
-
-                        let trend = '<span style="color:#64748b;">⚪ ثبات</span>';
-                        if (diffNet > 0) trend = '<span style="color:#16a34a; font-weight:bold;">🟢 نمو</span>';
-                        else if (diffNet < 0) trend = '<span style="color:#dc2626; font-weight:bold;">🔴 انخفاض</span>';
-
-                        tableRowsHtml += `<td>${trend}</td></tr>`;
-                    });
-
-                    tableRowsHtml += `<tr class="team-total-row"><td style="text-align:right; font-weight:bold;">📊 إجمالي فريق: ${team}</td>`;
-                    let tTeamSalesFirst = 0, tTeamSalesLast = 0, tTeamReturnsFirst = 0, tTeamReturnsLast = 0, tTeamNetFirst = 0, tTeamNetLast = 0;
-
-                    sortedYears.forEach((y, idx) => {
-                        let tSales = teamTotals[y].sales;
-                        let tReturns = teamTotals[y].returns;
-                        let tNet = tSales - tReturns;
-                        grandTotals[y].sales += tSales;
-                        grandTotals[y].returns += tReturns;
-
-                        if (idx === 0) { tTeamSalesFirst = tSales; tTeamReturnsFirst = tReturns; tTeamNetFirst = tNet; }
-                        if (idx === sortedYears.length - 1) { tTeamSalesLast = tSales; tTeamReturnsLast = tReturns; tTeamNetLast = tNet; }
-
-                        tableRowsHtml += `
-                            <td>${tSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td style="color:#dc2626;">${tReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td style="color:#16a34a; border-left:3px solid #94a3b8;">${tNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        `;
-                    });
-
-                    let teamDiffSales = tTeamSalesLast - tTeamSalesFirst;
-                    let teamDiffReturns = tTeamReturnsLast - tTeamReturnsFirst;
-                    let teamDiffNet = tTeamNetLast - tTeamNetFirst;
-                    let teamTrend = '<span style="color:#64748b;">⚪ ثبات</span>';
-                    if (teamDiffNet > 0) teamTrend = '<span style="color:#16a34a; font-weight:bold;">🟢 نمو</span>';
-                    else if (teamDiffNet < 0) teamTrend = '<span style="color:#dc2626; font-weight:bold;">🔴 انخفاض</span>';
-
-                    tableRowsHtml += `
-                        <td style="font-weight:bold; color:${teamDiffSales >= 0 ? '#16a34a':'#dc2626'};">${teamDiffSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td style="font-weight:bold; color:${teamDiffReturns <= 0 ? '#16a34a':'#dc2626'};">${teamDiffReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td style="font-weight:bold; color:${teamDiffNet >= 0 ? '#16a34a':'#dc2626'}; border-left:3px solid #94a3b8;">${teamDiffNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${teamTrend}</td>
-                    </tr>`;
-                });
-
-                return { topHeaderHtml, subHeaderHtml, tableRowsHtml };
-            }
-
-            let initialContent = renderReportHTML();
-
-            compWindow.document.write(`
-                <html lang="ar" dir="rtl">
-                <head>
-                    <title>تقرير تسلسل الفرق والمناديب المفصل</title>
-                    <style>
-                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 15px; background: #f8fafc; color: #1e293b; }
-                        h2 { text-align: center; color: #2563eb; font-size: 16px; margin-bottom: 10px; }
-                        .filter-box { background: #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-                        .filter-group { display: flex; flex-direction: column; }
-                        .filter-group label { font-size: 11px; font-weight: bold; margin-bottom: 3px; }
-                        .filter-group input, .filter-group select { padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; background: white; }
-                        .btn-filter { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; }
-                        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                        th, td { border: 1px solid #cbd5e1; padding: 7px 5px; text-align: center; font-size: 9pt; }
-                        th { color: white; }
-                        .team-group-header { background-color: #e2e8f0; font-weight: bold; color: #0f172a; text-align: right; }
-                        .team-total-row { background-color: #f1f5f9; font-weight: bold; color: #0369a1; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
-                        .print-btn { background: #4f46e5; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px; }
-                        .actions-bar-popup { display: flex; gap: 8px; margin-bottom: 15px; justify-content: center; }
-                    </style>
-                </head>
-                <body>
-                    <h2>⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
-                    
-                    <div class="filter-box">
-                        <div class="filter-group">
-                            <label>بحث بالفريق:</label>
-                            <input type="text" id="popupTeam" placeholder="اسم الفريق...">
-                        </div>
-                        <div class="filter-group">
-                            <label>بحث بالمندوب:</label>
-                            <input type="text" id="popupRep" placeholder="اسم المندوب...">
-                        </div>
-                        <div class="filter-group">
-                            <label>السنة:</label>
-                            <select id="popupYear">
-                                <option value="">كل السنوات</option>
-                                ${Array.from(masterYears).map(y => `<option value="${y}">${y}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>الشهر:</label>
-                            <select id="popupMonth">
-                                <option value="">كل الشهور</option>
-                                <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
-                                <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
-                                <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
-                                <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button class="btn-filter" onclick="applyPopupFilter()">🔍 تطبيق الفلاتر</button>
-                        </div>
-                    </div>
-
-                    <div class="actions-bar-popup">
-                        <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
-                    </div>
-
-                    <div id="tableWrapper">
-                        <table>
-                            <thead>
-                                ${initialContent.topHeaderHtml}
-                                ${initialContent.subHeaderHtml}
-                            </thead>
-                            <tbody id="popupBody">${initialContent.tableRowsHtml}</tbody>
-                        </table>
-                    </div>
-
-                    <script>
-                        function applyPopupFilter() {
-                            let fTeam = document.getElementById('popupTeam').value;
-                            let fRep = document.getElementById('popupRep').value;
-                            let fYear = document.getElementById('popupYear').value;
-                            let fMonth = document.getElementById('popupMonth').value;
-                            
-                            window.opener.updatePopupTable(fTeam, fRep, fYear, fMonth, ${teamIdx}, ${repIdx}, ${dateIdx}, ${valIdx}, ${invoiceColIndex});
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
-            compWindow.document.close();
-            window.compWindowRef = compWindow;
-        }
-
-        window.updatePopupTable = function(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
+        function calculateReportData(filterTeam = "", filterRep = "", filterYear = "", filterMonth = "", teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
             let hierarchy = {};
             let yearsSet = new Set();
 
@@ -810,15 +553,15 @@
                 let teamName = String(row[teamIdx] || "فريق غير محدد").trim();
                 let repName = String(row[repIdx] || "مندوب غير محدد").trim();
 
-                if (fTeam && !teamName.toLowerCase().includes(fTeam.toLowerCase())) return;
-                if (fRep && !repName.toLowerCase().includes(fRep.toLowerCase())) return;
+                if (filterTeam && !teamName.toLowerCase().includes(filterTeam.toLowerCase())) return;
+                if (filterRep && !repName.toLowerCase().includes(filterRep.toLowerCase())) return;
 
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "غير محدد";
                 let month = dObj ? (dObj.getMonth() + 1) : "غير محدد";
 
-                if (fYear && String(year) !== String(fYear)) return;
-                if (fMonth && String(month) !== String(fMonth)) return;
+                if (filterYear && String(year) !== String(filterYear)) return;
+                if (filterMonth && String(month) !== String(filterMonth)) return;
 
                 let amount = Number(row[valIdx]) || 0;
                 let isReturn = false;
@@ -953,9 +696,119 @@
                 </tr>`;
             });
 
+            return { topHeaderHtml, subHeaderHtml, tableRowsHtml };
+        }
+
+        function generateTeamsAndRepsReport() {
+            let teamIdx = Number(document.getElementById('modalTeamCol').value);
+            let repIdx = Number(document.getElementById('modalRepCol').value);
+            let dateIdx = Number(document.getElementById('modalDateCol').value);
+            let valIdx = Number(document.getElementById('modalValueCol').value);
+            let invoiceColIndex = -1;
+            tableHeaders.forEach((h, idx) => {
+                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
+                if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) invoiceColIndex = idx;
+            });
+            closeModal();
+
+            let initialContent = calculateReportData("", "", "", "", teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
+            let compWindow = window.open('', '_blank');
+
+            let yearsOptionsHtml = Array.from(masterYears).map(y => `<option value="${y}">${y}</option>`).join('');
+
+            let popupContent = `
+                <html lang="ar" dir="rtl">
+                <head>
+                    <title>تقرير تسلسل الفرق والمناديب المفصل</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 15px; background: #f8fafc; color: #1e293b; }
+                        h2 { text-align: center; color: #2563eb; font-size: 16px; margin-bottom: 10px; }
+                        .filter-box { background: #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+                        .filter-group { display: flex; flex-direction: column; }
+                        .filter-group label { font-size: 11px; font-weight: bold; margin-bottom: 3px; }
+                        .filter-group input, .filter-group select { padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; background: white; }
+                        .btn-filter { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; }
+                        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        th, td { border: 1px solid #cbd5e1; padding: 7px 5px; text-align: center; font-size: 9pt; }
+                        th { color: white; }
+                        .team-group-header { background-color: #e2e8f0; font-weight: bold; color: #0f172a; text-align: right; }
+                        .team-total-row { background-color: #f1f5f9; font-weight: bold; color: #0369a1; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
+                        .print-btn { background: #4f46e5; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px; }
+                        .actions-bar-popup { display: flex; gap: 8px; margin-bottom: 15px; justify-content: center; }
+                    </style>
+                </head>
+                <body>
+                    <h2>⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
+                    
+                    <div class="filter-box">
+                        <div class="filter-group">
+                            <label>بحث بالفريق:</label>
+                            <input type="text" id="popupTeam" placeholder="اسم الفريق...">
+                        </div>
+                        <div class="filter-group">
+                            <label>بحث بالمندوب:</label>
+                            <input type="text" id="popupRep" placeholder="اسم المندوب...">
+                        </div>
+                        <div class="filter-group">
+                            <label>السنة:</label>
+                            <select id="popupYear">
+                                <option value="">كل السنوات</option>
+                                ${yearsOptionsHtml}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>الشهر:</label>
+                            <select id="popupMonth">
+                                <option value="">كل الشهور</option>
+                                <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
+                                <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
+                                <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
+                                <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button class="btn-filter" onclick="applyPopupFilter()">🔍 تطبيق الفلاتر</button>
+                        </div>
+                    </div>
+
+                    <div class="actions-bar-popup">
+                        <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
+                    </div>
+
+                    <div id="tableWrapper">
+                        <table>
+                            <thead>
+                                ${initialContent.topHeaderHtml}
+                                ${initialContent.subHeaderHtml}
+                            </thead>
+                            <tbody id="popupBody">${initialContent.tableRowsHtml}</tbody>
+                        </table>
+                    </div>
+
+                    <script>
+                        function applyPopupFilter() {
+                            let fTeam = document.getElementById('popupTeam').value;
+                            let fRep = document.getElementById('popupRep').value;
+                            let fYear = document.getElementById('popupYear').value;
+                            let fMonth = document.getElementById('popupMonth').value;
+                            
+                            window.opener.updatePopupTable(fTeam, fRep, fYear, fMonth, ${teamIdx}, ${repIdx}, ${dateIdx}, ${valIdx}, ${invoiceColIndex});
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+
+            compWindow.document.write(popupContent);
+            compWindow.document.close();
+            window.compWindowRef = compWindow;
+        }
+
+        window.updatePopupTable = function(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
+            let res = calculateReportData(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
             if (window.compWindowRef && !window.compWindowRef.closed) {
                 let doc = window.compWindowRef.document;
-                doc.querySelector('table').innerHTML = `<thead>${topHeaderHtml}${subHeaderHtml}</thead><tbody id="popupBody">${tableRowsHtml}</tbody>`;
+                doc.querySelector('table').innerHTML = `<thead>${res.topHeaderHtml}${res.subHeaderHtml}</thead><tbody id="popupBody">${res.tableRowsHtml}</tbody>`;
             }
         };
 
