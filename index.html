@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</title>
+    <title>نظام تحليل ومقارنة المبيعات والمرتجعات حسب الفرق والمناديب</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
@@ -560,7 +560,7 @@
 
             let compWindow = window.open('', '_blank');
 
-            function renderReportHTML(filterTeam = "", filterRep = "", filterYear = "", filterMonth = "") {
+            function renderReportHTML(filterTeam = "", filterRep = "", filterYear = "") {
                 let hierarchy = {};
                 let yearsSet = new Set();
 
@@ -573,10 +573,8 @@
 
                     let dObj = parseRowDate(row[dateIdx]);
                     let year = dObj ? dObj.getFullYear() : "غير محدد";
-                    let month = dObj ? (dObj.getMonth() + 1) : "غير محدد";
 
                     if (filterYear && String(year) !== String(filterYear)) return;
-                    if (filterMonth && String(month) !== String(filterMonth)) return;
 
                     let amount = Number(row[valIdx]) || 0;
                     let isReturn = false;
@@ -756,16 +754,6 @@
                                 ${Array.from(masterYears).map(y => `<option value="${y}">${y}</option>`).join('')}
                             </select>
                         </div>
-                        <div class="filter-group">
-                            <label>الشهر:</label>
-                            <select id="popupMonth">
-                                <option value="">كل الشهور</option>
-                                <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
-                                <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
-                                <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
-                                <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
-                            </select>
-                        </div>
                         <div>
                             <button class="btn-filter" onclick="applyPopupFilter()">🔍 تطبيق الفلاتر</button>
                         </div>
@@ -790,9 +778,9 @@
                             let fTeam = document.getElementById('popupTeam').value;
                             let fRep = document.getElementById('popupRep').value;
                             let fYear = document.getElementById('popupYear').value;
-                            let fMonth = document.getElementById('popupMonth').value;
                             
-                            window.opener.updatePopupTable(fTeam, fRep, fYear, fMonth, ${teamIdx}, ${repIdx}, ${dateIdx}, ${valIdx}, ${invoiceColIndex});
+                            // إرسال البيانات للنافذة الرئيسية لتحديث الجدول هنا يتم محلياً
+                            window.opener.updatePopupTable(fTeam, fRep, fYear, ${teamIdx}, ${repIdx}, ${dateIdx}, ${valIdx}, ${invoiceColIndex});
                         }
                     </script>
                 </body>
@@ -802,7 +790,7 @@
             window.compWindowRef = compWindow;
         }
 
-        window.updatePopupTable = function(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
+        window.updatePopupTable = function(fTeam, fRep, fYear, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
             let hierarchy = {};
             let yearsSet = new Set();
 
@@ -815,10 +803,8 @@
 
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "غير محدد";
-                let month = dObj ? (dObj.getMonth() + 1) : "غير محدد";
 
                 if (fYear && String(year) !== String(fYear)) return;
-                if (fMonth && String(month) !== String(fMonth)) return;
 
                 let amount = Number(row[valIdx]) || 0;
                 let isReturn = false;
