@@ -52,7 +52,7 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">🔄 جاري سحب البيانات المحدثة من Google Sheets...</span>
+                <span id="statusText">🔄 جاري سحب أحدث التحديثات من Google Sheets...</span>
             </div>
             <div>
                 <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 تحديث البيانات الآن</button>
@@ -135,15 +135,16 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // الرابط المباشر الصحيح بصيغة التصدير التلقائي
+        // الرابط السحابي المدعوم بالوسيط لتجاوز قيود المتصفح
         const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794';
 
         function loadCloudData() {
             document.getElementById('statusText').innerText = `🔄 جاري سحب أحدث التحديثات من Google Sheets...`;
-            
-            fetch(GOOGLE_SHEET_CSV_URL)
+            let proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
+
+            fetch(proxyUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي. تأكد أن الملف مشترك لـ (أي شخص لديه الرابط).");
+                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي.");
                     return response.text();
                 })
                 .then(csvText => {
