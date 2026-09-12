@@ -190,6 +190,10 @@
             z-index: 10;
         }
 
+        .separator-col {
+            border-left: 3px solid #94a3b8 !important;
+        }
+
         .team-group-header {
             background-color: var(--team-header-bg) !important;
             font-weight: bold !important;
@@ -207,14 +211,6 @@
             border-bottom: 2px solid #0284c7;
         }
 
-        .grand-total-row {
-            background-color: #dbeafe !important;
-            font-weight: bold !important;
-            color: #1e3a8a !important;
-            border-top: 2px solid #2563eb;
-            border-bottom: 2px solid #2563eb;
-        }
-
         tr:hover { background-color: #f8fafc; }
 
         .row-count {
@@ -222,15 +218,6 @@
             font-weight: bold;
             color: #475569;
             font-size: 12px;
-        }
-
-        .print-title-header {
-            display: none;
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #1e293b;
         }
 
         #configModal {
@@ -322,7 +309,6 @@
             <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة</button>
         </div>
 
-        <div id="printTitleHeader" class="print-title-header">تقرير مبيعات الفرق والمناديب</div>
         <div class="row-count" id="rowCount">عدد السجلات: 0</div>
 
         <div class="table-container">
@@ -333,7 +319,6 @@
         </div>
     </div>
 
-    <!-- نافذة إعداد الأعمدة -->
     <div id="configModal">
         <div class="modal-content">
             <h3>إعداد تقرير تسلسل الفرق والمناديب</h3>
@@ -367,7 +352,7 @@
         let masterYears = new Set();
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V8", 1);
+            let request = indexedDB.open("SalesSystemDB_V9", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -606,83 +591,129 @@
 
             let compWindow = window.open('', '_blank');
 
-            let tableHeadersHtml = `<th>الفريق / المندوب</th>`;
+            // سطر العناوين الرئيسي الأول (الدمج والتوسيط للسنوات والفرق)
+            let topHeaderHtml = `<tr><th rowspan="2">الفريق / المندوب</th>`;
             sortedYears.forEach(y => {
-                tableHeadersHtml += `<th style="background:#0284c7;">مبيعات ${y}</th><th style="background:#dc2626;">مرتجعات ${y}</th><th style="background:#16a34a;">صافي ${y}</th>`;
+                topHeaderHtml += `<th colspan="3" style="background:#0284c7; border-left:3px solid #94a3b8;">سنة ${y}</th>`;
             });
-            tableHeadersHtml += `<th style="background:#475569;">إجمالي الصافي</th><th style="background:#1e293b;">الاتجاه العام (نمو/انخفاض/ثبات)</th>`;
+            topHeaderHtml += `<th colspan="3" style="background:#d97706; border-left:3px solid #94a3b8;">الفرق (مقارنة)</th>`;
+            topHeaderHtml += `<th rowspan="2" style="background:#1e293b;">الاتجاه العام (نمو / انخفاض / ثبات)</th></tr>`;
+
+            // سطر العناوين الفرعي الثاني (مبيعات، مرتجعات، صافي)
+            let subHeaderHtml = `<tr>`;
+            sortedYears.forEach(() => {
+                subHeaderHtml += `
+                    <th style="background:#38bdf8;">مبيعات</th>
+                    <th style="background:#f87171;">مرتجعات</th>
+                    <th style="background:#4ade80; border-left:3px solid #94a3b8;">صافي</th>
+                `;
+            });
+            subHeaderHtml += `
+                <th style="background:#fbbf24;">فارق مبيعات</th>
+                <th style="background:#fca5a5;">فارق مرتجعات</th>
+                <th style="background:#86efac; border-left:3px solid #94a3b8;">فارق صافي</th>
+            `;
+            subHeaderHtml += `</tr>`;
 
             let tableRowsHtml = '';
             let grandTotals = {};
             sortedYears.forEach(y => { grandTotals[y] = { sales: 0, returns: 0 }; });
-            let grandTotalNet = 0;
 
             Object.keys(hierarchy).sort().forEach(team => {
-                // صف عنوان الفريق
-                tableRowsHtml += `<tr class="team-group-header"><td colspan="${(sortedYears.length * 3) + 2}" style="text-align:right; padding:8px;">📁 الفريق: ${team}</td></tr>`;
+                tableRowsHtml += `<tr class="team-group-header"><td colspan="${(sortedYears.length * 3) + 5}" style="text-align:right; padding:8px;">📁 الفريق: ${team}</td></tr>`;
 
                 let teamTotals = {};
                 sortedYears.forEach(y => { teamTotals[y] = { sales: 0, returns: 0 }; });
-                let teamTotalNet = 0;
 
                 Object.keys(hierarchy[team]).sort().forEach(rep => {
                     tableRowsHtml += `<tr><td style="text-align:right; padding-right:20px;">👤 ${rep}</td>`;
-                    let repTotalNet = 0;
                     let repYearsData = hierarchy[team][rep];
 
                     sortedYears.forEach(y => {
                         let yData = repYearsData[y] || { sales: 0, returns: 0 };
                         let netY = yData.sales - yData.returns;
-                        repTotalNet += netY;
                         teamTotals[y].sales += yData.sales;
                         teamTotals[y].returns += yData.returns;
 
                         tableRowsHtml += `
                             <td>${yData.sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td style="color:#dc2626;">${yData.returns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                            <td style="font-weight:bold; color:#16a34a;">${netY.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td style="font-weight:bold; color:#16a34a; border-left:3px solid #94a3b8;">${netY.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         `;
                     });
 
-                    // الاتجاه للمندوب
-                    let trend = '<span style="color:#64748b;">⚪ ثبات</span>';
+                    // حساب الفرق (بين السنة الأخيرة والسنة الأولى أو بين أول سنتين متوفرتين)
+                    let diffSales = 0, diffReturns = 0, diffNet = 0;
                     if (sortedYears.length >= 2) {
-                        let firstNet = (repYearsData[sortedYears[0]]?.sales || 0) - (repYearsData[sortedYears[0]]?.returns || 0);
-                        let lastNet = (repYearsData[sortedYears[sortedYears.length - 1]]?.sales || 0) - (repYearsData[sortedYears[sortedYears.length - 1]]?.returns || 0);
-                        if (lastNet > firstNet) trend = '<span style="color:#16a34a; font-weight:bold;">🟢 نمو</span>';
-                        else if (lastNet < firstNet) trend = '<span style="color:#dc2626; font-weight:bold;">🔴 انخفاض</span>';
+                        let yFirst = sortedYears[0];
+                        let yLast = sortedYears[sortedYears.length - 1];
+                        let fSales = repYearsData[yLast]?.sales || 0;
+                        let fBaseSales = repYearsData[yFirst]?.sales || 0;
+                        diffSales = fSales - fBaseSales;
+
+                        let fReturns = repYearsData[yLast]?.returns || 0;
+                        let fBaseReturns = repYearsData[yFirst]?.returns || 0;
+                        diffReturns = fReturns - fBaseReturns;
+
+                        let fNet = (repYearsData[yLast]?.sales || 0) - (repYearsData[yLast]?.returns || 0);
+                        let fBaseNet = (repYearsData[yFirst]?.sales || 0) - (repYearsData[yFirst]?.returns || 0);
+                        diffNet = fNet - fBaseNet;
                     }
 
-                    tableRowsHtml += `<td style="font-weight:bold; background:#f1f5f9;">${repTotalNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${trend}</td></tr>`;
+                    tableRowsHtml += `
+                        <td style="font-weight:bold; color:${diffSales >= 0 ? '#16a34a':'#dc2626'};">${diffSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style="font-weight:bold; color:${diffReturns <= 0 ? '#16a34a':'#dc2626'};">${diffReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style="font-weight:bold; color:${diffNet >= 0 ? '#16a34a':'#dc2626'}; border-left:3px solid #94a3b8;">${diffNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    `;
+
+                    // المؤشر (نمو / انخفاض / ثبات)
+                    let trend = '<span style="color:#64748b;">⚪ ثبات</span>';
+                    if (diffNet > 0) trend = '<span style="color:#16a34a; font-weight:bold;">🟢 نمو</span>';
+                    else if (diffNet < 0) trend = '<span style="color:#dc2626; font-weight:bold;">🔴 انخفاض</span>';
+
+                    tableRowsHtml += `<td>${trend}</td></tr>`;
                 });
 
                 // صف إجمالي الفريق
                 tableRowsHtml += `<tr class="team-total-row"><td style="text-align:right; font-weight:bold;">📊 إجمالي فريق: ${team}</td>`;
-                let teamNetSum = 0;
-                sortedYears.forEach(y => {
+                let tTeamSalesFirst = 0, tTeamSalesLast = 0, tTeamReturnsFirst = 0, tTeamReturnsLast = 0, tTeamNetFirst = 0, tTeamNetLast = 0;
+
+                sortedYears.forEach((y, idx) => {
                     let tSales = teamTotals[y].sales;
                     let tReturns = teamTotals[y].returns;
                     let tNet = tSales - tReturns;
-                    teamNetSum += tNet;
                     grandTotals[y].sales += tSales;
                     grandTotals[y].returns += tReturns;
+
+                    if (idx === 0) { tTeamSalesFirst = tSales; tTeamReturnsFirst = tReturns; tTeamNetFirst = tNet; }
+                    if (idx === sortedYears.length - 1) { tTeamSalesLast = tSales; tTeamReturnsLast = tReturns; tTeamNetLast = tNet; }
 
                     tableRowsHtml += `
                         <td>${tSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style="color:#dc2626;">${tReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td style="color:#16a34a;">${tNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style="color:#16a34a; border-left:3px solid #94a3b8;">${tNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     `;
                 });
-                grandTotalNet += teamNetSum;
 
+                let teamDiffSales = tTeamSalesLast - tTeamSalesFirst;
+                let teamDiffReturns = tTeamReturnsLast - tTeamReturnsFirst;
+                let teamDiffNet = tTeamNetLast - tTeamNetFirst;
                 let teamTrend = '<span style="color:#64748b;">⚪ ثبات</span>';
-                tableRowsHtml += `<td style="background:#e0f2fe;">${teamNetSum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${teamTrend}</td></tr>`;
+                if (teamDiffNet > 0) teamTrend = '<span style="color:#16a34a; font-weight:bold;">🟢 نمو</span>';
+                else if (teamDiffNet < 0) teamTrend = '<span style="color:#dc2626; font-weight:bold;">🔴 انخفاض</span>';
+
+                tableRowsHtml += `
+                    <td style="font-weight:bold; color:${teamDiffSales >= 0 ? '#16a34a':'#dc2626'};">${teamDiffSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="font-weight:bold; color:${teamDiffReturns <= 0 ? '#16a34a':'#dc2626'};">${teamDiffReturns.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="font-weight:bold; color:${teamDiffNet >= 0 ? '#16a34a':'#dc2626'}; border-left:3px solid #94a3b8;">${teamDiffNet.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>${teamTrend}</td>
+                </tr>`;
             });
 
             compWindow.document.write(`
                 <html lang="ar" dir="rtl">
                 <head>
-                    <title>تقرير تسلسل الفرق والمناديب</title>
+                    <title>تقرير تسلسل الفرق والمناديب المدمج</title>
                     <style>
                         body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
                         h2 { text-align: center; color: #2563eb; }
@@ -695,10 +726,13 @@
                     </style>
                 </head>
                 <body>
-                    <h2>⚖️ تقرير تسلسل الفرق والمناديب (مبيعات، مرتجعات، صافي والمؤشرات)</h2>
+                    <h2>⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
                     <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
                     <table>
-                        <thead><tr>${tableHeadersHtml}</tr></thead>
+                        <thead>
+                            ${topHeaderHtml}
+                            ${subHeaderHtml}
+                        </thead>
                         <tbody>${tableRowsHtml}</tbody>
                     </table>
                 </body>
