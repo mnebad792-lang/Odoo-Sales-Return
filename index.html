@@ -54,20 +54,6 @@
             gap: 10px;
         }
 
-        .upload-section input[type="file"] { display: none; }
-
-        .custom-file-upload {
-            background-color: #2563eb;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 11px;
-            display: inline-block;
-        }
-        .custom-file-upload:hover { background-color: #1d4ed8; }
-
         #statusText {
             font-weight: bold;
             color: #1e40af;
@@ -176,11 +162,10 @@
             border-bottom: 1px solid #e2e8f0;
             border-left: 1px solid #e2e8f0;
             font-size: 8pt !important;
-            white-space: normal; /* السماح بالتفاف النص وعدم قصه */
+            white-space: normal;
             word-break: break-word;
         }
 
-        /* أعمدة المندوب، العميل، والمنتج لتأخذ مساحتها الكافية وتظهر كاملة */
         th.col-rep, td.col-rep { min-width: 130px; text-align: right; }
         th.col-client, td.col-client { min-width: 200px; text-align: right; }
         th.col-product, td.col-product { min-width: 220px; text-align: right; }
@@ -239,13 +224,10 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">📂 جاري تهيئة النظام والتحقق من البيانات...</span>
+                <span id="statusText">🔄 جاري جلب أحدث البيانات من سحابة OneDrive...</span>
             </div>
             <div>
-                <label for="excelFileinput" class="custom-file-upload" id="uploadLabel">
-                    📁 رفع واستبدال ملف الاكسيل المحدث
-                </label>
-                <input type="file" id="excelFileinput" accept=".xlsx, .xls, .csv" onchange="handleExcelUpload(event)">
+                <button class="action-btn" onclick="loadCloudData()" style="font-size: 11px; background-color: #2563eb;">🔄 تحديث البيانات الآن</button>
             </div>
         </div>
 
@@ -307,7 +289,7 @@
         </div>
     </div>
 
-    <!-- نافذة التقرير التفصيلي المباشرة -->
+    <!-- نافذة التقرير التفصيلي -->
     <div id="reportModalContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h2 style="margin: 0; color: #2563eb; font-size: 15px;">⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
@@ -361,46 +343,46 @@
     <script>
         let globalAllData = [];
         let tableHeaders = [];
-        let db;
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V17", 1);
-            request.onsuccess = function(event) {
-                db = event.target.result;
-                loadStoredData();
-            };
-            request.onupgradeneeded = function(event) {
-                let dbTarget = event.target.result;
-                if (dbTarget.objectStoreNames.contains("files")) dbTarget.deleteObjectStore("files");
-                dbTarget.createObjectStore("files");
-            };
+        // رابط الـ OneDrive المباشر لملفك الكبير
+        const ONEDRIVE_FILE_URL = 'https://1drv.ms/x/c/fb1c11d1e6f04a95/IQBDQ4wQw1xGQoxMW0b_praGAZqRtuL0AmKIn2KRwnf_mak?e=9hdzhR&download=1'; 
+
+        function loadCloudData() {
+            document.getElementById('statusText').innerText = `🔄 جاري تحميل الملف الضخم من OneDrive... يرجى الانتظار`;
+            
+            fetch(ONEDRIVE_FILE_URL)
+                .then(response => {
+                    if (!response.ok) throw new Error("تعذر الوصول لملف الـ OneDrive. تأكد من صحة صلاحيات المشاركة.");
+                    return response.arrayBuffer();
+                })
+                .then(buffer => {
+                    let data = new Uint8Array(buffer);
+                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    let sheetName = workbook.SheetNames.includes("Data") ? "Data" : workbook.SheetNames[0];
+                    let worksheet = workbook.Sheets[sheetName];
+                    let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
+
+                    if (cleanRows && cleanRows.length > 0) {
+                        tableHeaders = cleanRows[0];
+                        globalAllData = cleanRows.slice(1);
+                        document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                        detectColumnsAutomatically();
+                        extractYears();
+                        renderTableRows(globalAllData);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('statusText').innerText = `❌ خطأ في تحميل الملف من OneDrive. تأكد أن الرابط يدعم التنزيل المباشر أو جرب زر التحديث مرة أخرى.`;
+                });
         }
 
-        function loadStoredData() {
-            if (!db) return;
-            let transaction = db.transaction(["files"], "readonly");
-            let store = transaction.objectStore("files");
-            let request = store.get("currentExcelFile");
-
-            request.onsuccess = function(event) {
-                let result = event.target.result;
-                if (result && result.data && result.data.length > 0) {
-                    tableHeaders = result.headers;
-                    globalAllData = result.data;
-                    document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length.toLocaleString()} سجل).`;
-                    document.getElementById('uploadLabel').innerText = '📁 استبدال بملف جديد';
-                    detectColumnsAutomatically();
-                    extractYears();
-                    renderTableRows(globalAllData);
-                } else {
-                    document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل للبدء...`;
-                }
-            };
-        }
-
-        window.onload = function() { initDB(); };
+        window.onload = function() { 
+            loadCloudData(); 
+        };
 
         function detectColumnsAutomatically() {
             tableHeaders.forEach((h, idx) => {
@@ -457,38 +439,6 @@
             let mm = String(d.getMonth() + 1).padStart(2, '0');
             let dd = String(d.getDate()).padStart(2, '0');
             return `${yy}-${mm}-${dd}`;
-        }
-
-        function handleExcelUpload(e) {
-            let file = e.target.files[0];
-            if (!file) return;
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    let data = new Uint8Array(e.target.result);
-                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    let sheetName = workbook.SheetNames.includes("Data") ? "Data" : workbook.SheetNames[0];
-                    let worksheet = workbook.Sheets[sheetName];
-                    let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                    let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
-
-                    if (cleanRows && cleanRows.length > 0) {
-                        tableHeaders = cleanRows[0];
-                        globalAllData = cleanRows.slice(1);
-                        
-                        let transaction = db.transaction(["files"], "readwrite");
-                        let store = transaction.objectStore("files");
-                        store.clear();
-                        store.put({ headers: tableHeaders, data: globalAllData, name: file.name }, "currentExcelFile");
-
-                        transaction.oncomplete = function() {
-                            alert(`تم تحديث البيانات بنجاح!`);
-                            location.reload();
-                        };
-                    }
-                } catch (err) { console.error(err); alert("خطأ في قراءة الملف."); }
-            };
-            reader.readAsArrayBuffer(file);
         }
 
         function extractYears() {
@@ -755,7 +705,7 @@
         }
 
         function openTeamsAndRepsReport() {
-            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً!"); return; }
+            if (globalAllData.length === 0) { alert("جاري تحميل البيانات من السحابة، يرجى الانتظار..."); return; }
             applyPopupFilter();
             document.getElementById('reportModalContainer').style.display = 'block';
         }
