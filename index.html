@@ -31,20 +31,24 @@
         .actions-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
         button.action-btn, label.action-btn { padding: 5px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
-        .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
-        table { width: 100%; border-collapse: collapse; table-layout: auto; }
-        th, td { padding: 8px 10px; text-align: center; vertical-align: middle; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; font-size: 8pt !important; }
         
-        /* تخصيص وتوسيع الأعمدة الرئيسية وتثبيت التواريخ في سطر واحد */
-        th.col-team, td.col-team { min-width: 140px; text-align: center; }
-        th.col-rep, td.col-rep { min-width: 160px; text-align: center; }
-        th.col-client, td.col-client { min-width: 230px; text-align: right; }
-        th.col-product, td.col-product { min-width: 260px; text-align: right; }
+        /* ضبط حاوية الجدول لتظهر كافة الأعمدة مع تفعيل التمرير الأفقي المنظم */
+        .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; direction: ltr; }
+        table { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; direction: rtl; }
         
-        /* منع تقطيع التواريخ والأرقام الطويلة ونزولها لسطر جديد */
-        td.col-date, td.col-invoice, td.col-number { white-space: nowrap !important; }
+        th, td { 
+            padding: 6px 8px; 
+            text-align: center; 
+            vertical-align: middle; 
+            border-bottom: 1px solid #e2e8f0; 
+            border-left: 1px solid #e2e8f0; 
+            font-size: 8pt !important; 
+            white-space: nowrap !important; /* تطبيق Shrink to Fit ومنع التفاف النصوص لتبقي كل البيانات في سطر واحد */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
         .team-group-header { background-color: var(--team-header-bg) !important; font-weight: bold !important; color: #0f172a !important; text-align: right !important; font-size: 9pt !important; border-top: 2px solid #94a3b8; }
         .team-total-row { background-color: var(--team-total-bg) !important; font-weight: bold !important; color: #0369a1 !important; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
         tr:hover { background-color: #f8fafc; }
@@ -296,13 +300,8 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             let headerHtml = '<tr>';
-            tableHeaders.forEach((h, idx) => {
-                let cssClass = '';
-                if (idx === detectedIndices.teamIdx) cssClass = 'col-team';
-                else if (idx === detectedIndices.repIdx) cssClass = 'col-rep';
-                else if (idx === detectedIndices.clientIdx) cssClass = 'col-client';
-                else if (idx === detectedIndices.productIdx) cssClass = 'col-product';
-                headerHtml += `<th class="${cssClass}">${h}</th>`;
+            tableHeaders.forEach((h) => {
+                headerHtml += `<th>${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -318,19 +317,7 @@
                     bodyHtml += '<tr>';
                     row.forEach((cell, cellIdx) => {
                         let displayVal = formatCellData(cell, tableHeaders[cellIdx], cellIdx);
-                        let cssClass = '';
-                        let hLower = String(tableHeaders[cellIdx] || "").toLowerCase();
-
-                        if (cellIdx === detectedIndices.teamIdx) cssClass = 'col-team';
-                        else if (cellIdx === detectedIndices.repIdx) cssClass = 'col-rep';
-                        else if (cellIdx === detectedIndices.clientIdx) cssClass = 'col-client';
-                        else if (cellIdx === detectedIndices.productIdx) cssClass = 'col-product';
-                        
-                        if (cellIdx === detectedIndices.dateIdx || cellIdx === detectedIndices.invoiceDateIdx || hLower.includes('تاريخ') || hLower.includes('رقم')) {
-                            cssClass += ' col-date';
-                        }
-
-                        bodyHtml += `<td class="${cssClass.trim()}">${displayVal}</td>`;
+                        bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
