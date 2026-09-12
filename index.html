@@ -29,7 +29,7 @@
         .search-field-group input, .search-field-group select { padding: 5px 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
         .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; height: 27px; width: 100%; }
         .actions-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-        button.action-btn { padding: 5px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 11px; }
+        button.action-btn, label.action-btn { padding: 5px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
         .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
         table { width: 100%; border-collapse: collapse; table-layout: auto; }
@@ -52,10 +52,13 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">🔄 جاري سحب أحدث التحديثات من Google Sheets...</span>
+                <span id="statusText">📁 يرجى اختيار ملف البيانات أو محاولة الجلب السحابي...</span>
             </div>
-            <div>
-                <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 تحديث البيانات الآن</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
+                    📁 ارفع ملف الإكسيل/CSV هنا <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
+                </label>
+                <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 محاولة الجلب السحابي</button>
             </div>
         </div>
 
@@ -135,22 +138,54 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // رابط تصدير مباشر مدعوم بوسيط بديل سريع ومستقر
         const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794';
 
         function loadCloudData() {
-            document.getElementById('statusText').innerText = `🔄 جاري سحب أحدث التحديثات من Google Sheets...`;
-            
-            // استخدام وسيط بديل آمن وسريع جداً (corsproxy.io)
+            document.getElementById('statusText').innerText = `🔄 جاري محاولة الجلب السحابي...`;
             let proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
 
             fetch(proxyUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي.");
+                    if (!response.ok) throw new Error("الملف غير منشور على الويب.");
                     return response.text();
                 })
-                .then(csvText => {
-                    let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+                .then(csvText => processCSVData(csvText))
+                .catch(err => {
+                    fetch(GOOGLE_SHEET_CSV_URL)
+                        .then(res => res.text())
+                        .then(csvText => processCSVData(csvText))
+                        .catch(e => {
+                            document.getElementById('statusText').innerText = `⚠️ تعذر الجلب السحابي. يرجى استخدام زر "ارفع ملف الإكسيل" بالأعلى.`;
+                        });
+                });
+        }
+
+        function processCSVData(csvText) {
+            let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+            let sheetName = workbook.SheetNames[0];
+            let worksheet = workbook.Sheets[sheetName];
+            let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
+
+            if (cleanRows && cleanRows.length > 0) {
+                tableHeaders = cleanRows[0];
+                globalAllData = cleanRows.slice(1);
+                document.getElementById('statusText').innerText = `✅ تم تحميل البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                detectColumnsAutomatically();
+                extractYears();
+                renderTableRows(globalAllData);
+            }
+        }
+
+        function handleFileSelect(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف المرفوع...`;
+            let reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    let data = new Uint8Array(evt.target.result);
+                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     let sheetName = workbook.SheetNames[0];
                     let worksheet = workbook.Sheets[sheetName];
                     let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
@@ -159,36 +194,16 @@
                     if (cleanRows && cleanRows.length > 0) {
                         tableHeaders = cleanRows[0];
                         globalAllData = cleanRows.slice(1);
-                        document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح من السحابة (${globalAllData.length.toLocaleString()} سجل).`;
+                        document.getElementById('statusText').innerText = `✅ تم قراءة الملف بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
                         detectColumnsAutomatically();
                         extractYears();
                         renderTableRows(globalAllData);
                     }
-                })
-                .catch(err => {
-                    console.warn("فشل الوسيط الأول، جاري المحاولة بطريقة بديلة مباشرة...");
-                    // المحاولة المباشرة الاحتياطية في حال تعثر الوسيط
-                    fetch(GOOGLE_SHEET_CSV_URL)
-                        .then(res => res.text())
-                        .then(csvText => {
-                            let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
-                            let sheetName = workbook.SheetNames[0];
-                            let worksheet = workbook.Sheets[sheetName];
-                            let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                            let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
-                            if (cleanRows && cleanRows.length > 0) {
-                                tableHeaders = cleanRows[0];
-                                globalAllData = cleanRows.slice(1);
-                                document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
-                                detectColumnsAutomatically();
-                                extractYears();
-                                renderTableRows(globalAllData);
-                            }
-                        })
-                        .catch(e => {
-                            document.getElementById('statusText').innerText = `❌ خطأ في الجلب. تأكد من أن الملف منشور على الويب أو متاح للعامة.`;
-                        });
-                });
+                } catch(ex) {
+                    alert("حدث خطأ أثناء قراءة الملف: " + ex.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         window.onload = function() { 
@@ -376,7 +391,7 @@
         }
 
         function openTeamsAndRepsReport() {
-            if (globalAllData.length === 0) { alert("جاري تحميل البيانات..."); return; }
+            if (globalAllData.length === 0) { alert("يرجى تحميل أو إرفاق البيانات أولاً."); return; }
             let res = calculateReportData();
             document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
             document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
