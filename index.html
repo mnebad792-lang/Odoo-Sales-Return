@@ -52,7 +52,7 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">🔄 جاري سحب البيانات المحدثة من السحابة...</span>
+                <span id="statusText">🔄 جاري سحب البيانات المحدثة من Google Sheets...</span>
             </div>
             <div>
                 <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 تحديث البيانات الآن</button>
@@ -135,16 +135,15 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // رابط Google Sheets السحابي (CSV) الذي أرسلته
-        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipmNmrq-qJEEVdHTyGyswWexkDxWFYe0fcAhB3cRcQ/pub?gid=1841364794&single=true&output=csv';
+        // الرابط المباشر الصحيح بصيغة التصدير التلقائي
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794';
 
         function loadCloudData() {
-            document.getElementById('statusText').innerText = `🔄 جاري جلب أحدث التحديثات من Google Sheets...`;
-            let proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-
-            fetch(proxyUrl)
+            document.getElementById('statusText').innerText = `🔄 جاري سحب أحدث التحديثات من Google Sheets...`;
+            
+            fetch(GOOGLE_SHEET_CSV_URL)
                 .then(response => {
-                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي.");
+                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي. تأكد أن الملف مشترك لـ (أي شخص لديه الرابط).");
                     return response.text();
                 })
                 .then(csvText => {
@@ -165,7 +164,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('statusText').innerText = `❌ حدث خطأ في جلب البيانات. تأكد من إعدادات النشر على الويب في جوجل شيت.`;
+                    document.getElementById('statusText').innerText = `❌ خطأ في الجلب. تأكد من إعدادات مشاركة الملف في جوجل درايف ليصبح (أي شخص لديه الرابط).`;
                 });
         }
 
