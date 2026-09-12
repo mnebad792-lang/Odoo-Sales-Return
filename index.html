@@ -33,10 +33,14 @@
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
         .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
         table { width: 100%; border-collapse: collapse; table-layout: auto; }
-        th, td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; font-size: 8pt !important; white-space: normal; word-break: break-word; }
-        th.col-rep, td.col-rep { min-width: 130px; text-align: right; }
-        th.col-client, td.col-client { min-width: 200px; text-align: right; }
-        th.col-product, td.col-product { min-width: 220px; text-align: right; }
+        th, td { padding: 8px 10px; text-align: center; vertical-align: middle; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; font-size: 8pt !important; white-space: normal; word-break: break-word; }
+        
+        /* زيادة عرض وتنسيق الأعمدة الأساسية */
+        th.col-team, td.col-team { min-width: 140px; text-align: center; }
+        th.col-rep, td.col-rep { min-width: 160px; text-align: center; }
+        th.col-client, td.col-client { min-width: 230px; text-align: right; }
+        th.col-product, td.col-product { min-width: 250px; text-align: right; }
+        
         th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
         .team-group-header { background-color: var(--team-header-bg) !important; font-weight: bold !important; color: #0f172a !important; text-align: right !important; font-size: 9pt !important; border-top: 2px solid #94a3b8; }
         .team-total-row { background-color: var(--team-total-bg) !important; font-weight: bold !important; color: #0369a1 !important; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
@@ -252,6 +256,28 @@
             return `${yy}-${mm}-${dd}`;
         }
 
+        // تنسيق القيم والأرقام لتجنب الكسور العشرية الطويلة وعرضها بشكل منسق
+        function formatCellData(val, headerName, cellIdx) {
+            let hLower = String(headerName || "").toLowerCase();
+            
+            // معالجة التواريخ
+            if (cellIdx === detectedIndices.dateIdx || cellIdx === detectedIndices.invoiceDateIdx || hLower.includes('تاريخ')) {
+                return formatDateClean(val);
+            }
+
+            // معالجة القيم المالية والأرقام
+            if (!isNaN(val) && val !== "" && val !== null && (hLower.includes('مبلغ') || hLower.includes('قيمة') || hLower.includes('إجمالي') || hLower.includes('سعر') || hLower.includes('الكمية') || hLower.includes('نسبة'))) {
+                let num = Number(val);
+                if (Number.isInteger(num)) {
+                    return num.toLocaleString();
+                } else {
+                    return Number(num.toFixed(2)).toLocaleString(); // تقييد الكسور العشرية بحد أقصى رقمين وتنسيقها
+                }
+            }
+
+            return val !== undefined && val !== null ? String(val).trim() : '';
+        }
+
         function extractYears() {
             let dateIdx = detectedIndices.dateIdx;
             masterYears.clear();
@@ -272,7 +298,8 @@
             let headerHtml = '<tr>';
             tableHeaders.forEach((h, idx) => {
                 let cssClass = '';
-                if (idx === detectedIndices.repIdx) cssClass = 'col-rep';
+                if (idx === detectedIndices.teamIdx) cssClass = 'col-team';
+                else if (idx === detectedIndices.repIdx) cssClass = 'col-rep';
                 else if (idx === detectedIndices.clientIdx) cssClass = 'col-client';
                 else if (idx === detectedIndices.productIdx) cssClass = 'col-product';
                 headerHtml += `<th class="${cssClass}">${h}</th>`;
@@ -290,15 +317,13 @@
                 chunk.forEach(row => {
                     bodyHtml += '<tr>';
                     row.forEach((cell, cellIdx) => {
-                        let displayVal = cell;
-                        if (cellIdx === detectedIndices.dateIdx || String(tableHeaders[cellIdx] || "").toLowerCase().includes('تاريخ')) {
-                            displayVal = formatDateClean(cell);
-                        }
+                        let displayVal = formatCellData(cell, tableHeaders[cellIdx], cellIdx);
                         let cssClass = '';
-                        if (cellIdx === detectedIndices.repIdx) cssClass = 'col-rep';
+                        if (cellIdx === detectedIndices.teamIdx) cssClass = 'col-team';
+                        else if (cellIdx === detectedIndices.repIdx) cssClass = 'col-rep';
                         else if (cellIdx === detectedIndices.clientIdx) cssClass = 'col-client';
                         else if (cellIdx === detectedIndices.productIdx) cssClass = 'col-product';
-                        bodyHtml += `<td class="${cssClass}">${displayVal !== undefined ? displayVal : ''}</td>`;
+                        bodyHtml += `<td class="${cssClass}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
