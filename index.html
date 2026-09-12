@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary-color: #2563eb;
@@ -215,7 +214,7 @@
             font-size: 12px;
         }
 
-        #configModal {
+        .modal {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -237,11 +236,22 @@
         .modal-field label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #475569; }
         .modal-field select { width: 100%; padding: 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px; }
         .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
+
+        #reportModalContainer {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #f8fafc;
+            z-index: 9998;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="container" id="mainAppContainer">
         <h2>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</h2>
 
         <div class="upload-section">
@@ -314,7 +324,8 @@
         </div>
     </div>
 
-    <div id="configModal">
+    <!-- نافذة إعداد التقارير -->
+    <div id="configModal" class="modal">
         <div class="modal-content">
             <h3>إعداد تقرير تسلسل الفرق والمناديب</h3>
             <div class="modal-field">
@@ -340,15 +351,66 @@
         </div>
     </div>
 
+    <!-- نافذة التقرير التفصيلي الكاملة -->
+    <div id="reportModalContainer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="margin: 0; color: #2563eb;">⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
+            <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة للقائمة الرئيسية</button>
+        </div>
+
+        <div class="quick-search-panel" style="margin-bottom: 15px;">
+            <div class="search-grid">
+                <div class="search-field-group">
+                    <label>بحث بالفريق:</label>
+                    <input type="text" id="popupTeam" placeholder="اسم الفريق...">
+                </div>
+                <div class="search-field-group">
+                    <label>بحث بالمندوب:</label>
+                    <input type="text" id="popupRep" placeholder="اسم المندوب...">
+                </div>
+                <div class="search-field-group">
+                    <label>السنة:</label>
+                    <select id="popupYear">
+                        <option value="">كل السنوات</option>
+                    </select>
+                </div>
+                <div class="search-field-group">
+                    <label>الشهر:</label>
+                    <select id="popupMonth">
+                        <option value="">كل الشهور</option>
+                        <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
+                        <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
+                        <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
+                        <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn-search-action" onclick="applyPopupFilter()">🔍 تطبيق الفلاتر</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions-bar" style="margin-bottom: 15px;">
+            <button class="action-btn btn-print" onclick="window.print()">🖨️ طباعة التقرير</button>
+        </div>
+
+        <div class="table-container" style="max-height: 70vh;">
+            <table id="popupTable">
+                <thead id="popupHeader"></thead>
+                <tbody id="popupBody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <script>
         let globalAllData = [];
         let tableHeaders = [];
         let db;
         let masterYears = new Set();
-        let compWindowRef = null;
+        let currentReportConfig = { teamIdx: 0, repIdx: 0, dateIdx: 0, valIdx: 0, invoiceColIndex: -1 };
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V11", 1);
+            let request = indexedDB.open("SalesSystemDB_V12", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -447,10 +509,14 @@
                 }
             });
             let yearSelect = document.getElementById('filterYear');
-            yearSelect.innerHTML = '<option value="">كل السنوات</option>';
+            let popupYearSelect = document.getElementById('popupYear');
+            
+            let yearsHtml = '<option value="">كل السنوات</option>';
             Array.from(masterYears).sort((a,b)=>a-b).forEach(y => {
-                let opt = document.createElement('option'); opt.value = y; opt.innerText = y; yearSelect.appendChild(opt);
+                yearsHtml += `<option value="${y}">${y}</option>`;
             });
+            yearSelect.innerHTML = yearsHtml;
+            popupYearSelect.innerHTML = yearsHtml;
         }
 
         function renderStandardTable() {
@@ -545,6 +611,7 @@
         }
 
         function closeModal() { document.getElementById('configModal').style.display = 'none'; }
+        function closeReportModal() { document.getElementById('reportModalContainer').style.display = 'none'; }
 
         function calculateReportData(filterTeam = "", filterRep = "", filterYear = "", filterMonth = "", teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
             let hierarchy = {};
@@ -706,111 +773,31 @@
             let dateIdx = Number(document.getElementById('modalDateCol').value);
             let valIdx = Number(document.getElementById('modalValueCol').value);
             let invoiceColIndex = -1;
+
             tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
                 if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) invoiceColIndex = idx;
             });
+
+            currentReportConfig = { teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex };
             closeModal();
 
-            let initialContent = calculateReportData("", "", "", "", teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
-            let compWindow = window.open('', '_blank');
-
-            let yearsOptionsHtml = Array.from(masterYears).map(y => `<option value="${y}">${y}</option>`).join('');
-
-            let popupContent = `
-                <html lang="ar" dir="rtl">
-                <head>
-                    <title>تقرير تسلسل الفرق والمناديب المفصل</title>
-                    <style>
-                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 15px; background: #f8fafc; color: #1e293b; }
-                        h2 { text-align: center; color: #2563eb; font-size: 16px; margin-bottom: 10px; }
-                        .filter-box { background: #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-                        .filter-group { display: flex; flex-direction: column; }
-                        .filter-group label { font-size: 11px; font-weight: bold; margin-bottom: 3px; }
-                        .filter-group input, .filter-group select { padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 11px; background: white; }
-                        .btn-filter { background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; }
-                        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                        th, td { border: 1px solid #cbd5e1; padding: 7px 5px; text-align: center; font-size: 9pt; }
-                        th { color: white; }
-                        .team-group-header { background-color: #e2e8f0; font-weight: bold; color: #0f172a; text-align: right; }
-                        .team-total-row { background-color: #f1f5f9; font-weight: bold; color: #0369a1; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
-                        .print-btn { background: #4f46e5; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 11px; }
-                        .actions-bar-popup { display: flex; gap: 8px; margin-bottom: 15px; justify-content: center; }
-                    </style>
-                </head>
-                <body>
-                    <h2>⚖️ تقرير تسلسل الفرق والمناديب (حسب السنوات، الفروق والمؤشرات)</h2>
-                    
-                    <div class="filter-box">
-                        <div class="filter-group">
-                            <label>بحث بالفريق:</label>
-                            <input type="text" id="popupTeam" placeholder="اسم الفريق...">
-                        </div>
-                        <div class="filter-group">
-                            <label>بحث بالمندوب:</label>
-                            <input type="text" id="popupRep" placeholder="اسم المندوب...">
-                        </div>
-                        <div class="filter-group">
-                            <label>السنة:</label>
-                            <select id="popupYear">
-                                <option value="">كل السنوات</option>
-                                ${yearsOptionsHtml}
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>الشهر:</label>
-                            <select id="popupMonth">
-                                <option value="">كل الشهور</option>
-                                <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
-                                <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
-                                <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
-                                <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button class="btn-filter" onclick="applyPopupFilter()">🔍 تطبيق الفلاتر</button>
-                        </div>
-                    </div>
-
-                    <div class="actions-bar-popup">
-                        <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
-                    </div>
-
-                    <div id="tableWrapper">
-                        <table>
-                            <thead>
-                                ${initialContent.topHeaderHtml}
-                                ${initialContent.subHeaderHtml}
-                            </thead>
-                            <tbody id="popupBody">${initialContent.tableRowsHtml}</tbody>
-                        </table>
-                    </div>
-
-                    <script>
-                        function applyPopupFilter() {
-                            let fTeam = document.getElementById('popupTeam').value;
-                            let fRep = document.getElementById('popupRep').value;
-                            let fYear = document.getElementById('popupYear').value;
-                            let fMonth = document.getElementById('popupMonth').value;
-                            
-                            window.opener.updatePopupTable(fTeam, fRep, fYear, fMonth, ${teamIdx}, ${repIdx}, ${dateIdx}, ${valIdx}, ${invoiceColIndex});
-                        }
-                    </script>
-                </body>
-                </html>
-            `;
-
-            compWindow.document.write(popupContent);
-            compWindow.document.close();
-            compWindowRef = compWindow;
+            let res = calculateReportData("", "", "", "", teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
+            document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
+            document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
+            document.getElementById('reportModalContainer').style.display = 'block';
         }
 
-        function updatePopupTable(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
-            let res = calculateReportData(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
-            if (compWindowRef && !compWindowRef.closed) {
-                let doc = compWindowRef.document;
-                doc.querySelector('table').innerHTML = `<thead>${res.topHeaderHtml}${res.subHeaderHtml}</thead><tbody id="popupBody">${res.tableRowsHtml}</tbody>`;
-            }
+        function applyPopupFilter() {
+            let fTeam = document.getElementById('popupTeam').value;
+            let fRep = document.getElementById('popupRep').value;
+            let fYear = document.getElementById('popupYear').value;
+            let fMonth = document.getElementById('popupMonth').value;
+            
+            let cfg = currentReportConfig;
+            let res = calculateReportData(fTeam, fRep, fYear, fMonth, cfg.teamIdx, cfg.repIdx, cfg.dateIdx, cfg.valIdx, cfg.invoiceColIndex);
+            document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
+            document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
         }
 
         function exportToExcel() { alert("استخدم نافذة التقرير التفصيلي للطباعة والتصدير المناسب."); }
