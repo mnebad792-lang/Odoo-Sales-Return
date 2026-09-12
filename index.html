@@ -135,12 +135,14 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // الرابط السحابي المدعوم بالوسيط لتجاوز قيود المتصفح
+        // رابط تصدير مباشر مدعوم بوسيط بديل سريع ومستقر
         const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794';
 
         function loadCloudData() {
             document.getElementById('statusText').innerText = `🔄 جاري سحب أحدث التحديثات من Google Sheets...`;
-            let proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
+            
+            // استخدام وسيط بديل آمن وسريع جداً (corsproxy.io)
+            let proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
 
             fetch(proxyUrl)
                 .then(response => {
@@ -164,8 +166,28 @@
                     }
                 })
                 .catch(err => {
-                    console.error(err);
-                    document.getElementById('statusText').innerText = `❌ خطأ في الجلب. تأكد من إعدادات مشاركة الملف في جوجل درايف ليصبح (أي شخص لديه الرابط).`;
+                    console.warn("فشل الوسيط الأول، جاري المحاولة بطريقة بديلة مباشرة...");
+                    // المحاولة المباشرة الاحتياطية في حال تعثر الوسيط
+                    fetch(GOOGLE_SHEET_CSV_URL)
+                        .then(res => res.text())
+                        .then(csvText => {
+                            let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+                            let sheetName = workbook.SheetNames[0];
+                            let worksheet = workbook.Sheets[sheetName];
+                            let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                            let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
+                            if (cleanRows && cleanRows.length > 0) {
+                                tableHeaders = cleanRows[0];
+                                globalAllData = cleanRows.slice(1);
+                                document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                                detectColumnsAutomatically();
+                                extractYears();
+                                renderTableRows(globalAllData);
+                            }
+                        })
+                        .catch(e => {
+                            document.getElementById('statusText').innerText = `❌ خطأ في الجلب. تأكد من أن الملف منشور على الويب أو متاح للعامة.`;
+                        });
                 });
         }
 
