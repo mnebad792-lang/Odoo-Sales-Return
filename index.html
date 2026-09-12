@@ -569,7 +569,7 @@
                     let repName = String(row[repIdx] || "مندوب غير محدد").trim();
 
                     if (filterTeam && !teamName.toLowerCase().includes(filterTeam.toLowerCase())) return;
-                    if (filterRep && !repName.toLowerCase().includes(repRepContent = filterRep.toLowerCase()) && !repName.toLowerCase().includes(filterRep.toLowerCase())) return;
+                    if (filterRep && !repName.toLowerCase().includes(filterRep.toLowerCase())) return;
 
                     let dObj = parseRowDate(row[dateIdx]);
                     let year = dObj ? dObj.getFullYear() : "غير محدد";
