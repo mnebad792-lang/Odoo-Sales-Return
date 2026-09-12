@@ -52,12 +52,10 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">🔄 قم برفع ملف الـ Excel من جهازك أو انتظر التحميل...</span>
+                <span id="statusText">🔄 جاري سحب البيانات المحدثة من السحابة...</span>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="file" id="localFileInput" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleLocalFileSelect(event)">
-                <button class="action-btn" onclick="document.getElementById('localFileInput').click()" style="background-color: #16a34a;">📁 اختر ملف Excel من جهازك</button>
-                <button class="action-btn" onclick="loadGoogleDriveData()" style="background-color: #2563eb;">🔄 محاولة السحب من الرابط</button>
+            <div>
+                <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 تحديث البيانات الآن</button>
             </div>
         </div>
 
@@ -137,76 +135,42 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        const GOOGLE_DRIVE_SHARE_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/edit?usp=sharing&ouid=111012112981771520827&rtpof=true&sd=true';
+        // رابط Google Sheets السحابي (CSV) الذي أرسلته
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipmNmrq-qJEEVdHTyGyswWexkDxWFYe0fcAhB3cRcQ/pub?gid=1841364794&single=true&output=csv';
 
-        function convertDriveUrlToDirect(url) {
-            let fileId = "";
-            if (url.includes('/d/')) {
-                fileId = url.split('/d/')[1].split('/')[0];
-            } else if (url.includes('id=')) {
-                fileId = url.split('id=')[1].split('&')[0];
-            }
-            if (!fileId) return url;
-            return `https://docs.google.com/uc?export=download&id=${fileId}`;
-        }
-
-        function processWorkbook(workbook) {
-            let sheetName = workbook.SheetNames.includes("Data") ? "Data" : workbook.SheetNames[0];
-            let worksheet = workbook.Sheets[sheetName];
-            let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-            let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
-
-            if (cleanRows && cleanRows.length > 0) {
-                tableHeaders = cleanRows[0];
-                globalAllData = cleanRows.slice(1);
-                document.getElementById('statusText').innerText = `✅ تم تحميل البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
-                detectColumnsAutomatically();
-                extractYears();
-                renderTableRows(globalAllData);
-            }
-        }
-
-        function loadGoogleDriveData() {
-            document.getElementById('statusText').innerText = `🔄 جاري محاولة جلب الملف من Google Drive...`;
-            let directUrl = convertDriveUrlToDirect(GOOGLE_DRIVE_SHARE_URL);
-            let proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(directUrl);
+        function loadCloudData() {
+            document.getElementById('statusText').innerText = `🔄 جاري جلب أحدث التحديثات من Google Sheets...`;
+            let proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
 
             fetch(proxyUrl)
                 .then(response => {
-                    if (!response.ok) throw new Error("تعذر جلب الملف عبر الرابط.");
-                    return response.arrayBuffer();
+                    if (!response.ok) throw new Error("تعذر الوصول إلى الشيت السحابي.");
+                    return response.text();
                 })
-                .then(buffer => {
-                    let data = new Uint8Array(buffer);
-                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    processWorkbook(workbook);
+                .then(csvText => {
+                    let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+                    let sheetName = workbook.SheetNames[0];
+                    let worksheet = workbook.Sheets[sheetName];
+                    let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
+
+                    if (cleanRows && cleanRows.length > 0) {
+                        tableHeaders = cleanRows[0];
+                        globalAllData = cleanRows.slice(1);
+                        document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح من السحابة (${globalAllData.length.toLocaleString()} سجل).`;
+                        detectColumnsAutomatically();
+                        extractYears();
+                        renderTableRows(globalAllData);
+                    }
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('statusText').innerText = `⚠️ فشل الجلب التلقائي من الرابط. يرجى استخدام زر "اختر ملف Excel من جهازك" أعلاه مباشرةً.`;
+                    document.getElementById('statusText').innerText = `❌ حدث خطأ في جلب البيانات. تأكد من إعدادات النشر على الويب في جوجل شيت.`;
                 });
         }
 
-        function handleLocalFileSelect(event) {
-            let file = event.target.files[0];
-            if (!file) return;
-            document.getElementById('statusText').innerText = `🔄 جاري قراءة الملف المحلى (${file.name})...`;
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    let data = new Uint8Array(e.target.result);
-                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    processWorkbook(workbook);
-                } catch (err) {
-                    console.error(err);
-                    document.getElementById('statusText').innerText = `❌ حدث خطأ أثناء قراءة ملف الـ Excel المحلي.`;
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
         window.onload = function() { 
-            loadGoogleDriveData(); 
+            loadCloudData(); 
         };
 
         function detectColumnsAutomatically() {
@@ -390,7 +354,7 @@
         }
 
         function openTeamsAndRepsReport() {
-            if (globalAllData.length === 0) { alert("الرجاء تحميل البيانات أولاً."); return; }
+            if (globalAllData.length === 0) { alert("جاري تحميل البيانات..."); return; }
             let res = calculateReportData();
             document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
             document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
