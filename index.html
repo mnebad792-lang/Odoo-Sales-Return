@@ -103,6 +103,7 @@
             min-width: 140px;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         .search-field-group label {
@@ -112,7 +113,7 @@
             color: #475569;
         }
 
-        .search-field-group input, .search-field-group select {
+        .search-field-group input {
             padding: 6px 8px;
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -121,6 +122,37 @@
             outline: none;
             width: 100%;
             box-sizing: border-box;
+        }
+
+        /* تنسيق القائمة المنسدلة المخصصة بحجم خط صغير ومناسب */
+        .custom-dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .custom-dropdown-item {
+            padding: 5px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #eff6ff;
+            color: #2563eb;
         }
 
         .btn-search-action {
@@ -260,26 +292,26 @@
             <div class="search-grid">
                 <div class="search-field-group">
                     <label>العميل:</label>
-                    <input type="text" id="searchClient" list="clientList" placeholder="اختر أو ابحث عن العميل..." oninput="executeFiltering()">
-                    <datalist id="clientList"></datalist>
+                    <input type="text" id="searchClient" placeholder="اختر أو ابحث عن العميل..." oninput="filterDropdown('searchClient', 'clientDropdown')" onfocus="showDropdown('clientDropdown')">
+                    <div id="clientDropdown" class="custom-dropdown-list"></div>
                 </div>
                 <div class="search-field-group">
                     <label>مندوب المبيعات:</label>
-                    <input type="text" id="searchRep" list="repList" placeholder="اختر أو ابحث عن المندوب..." oninput="executeFiltering()">
-                    <datalist id="repList"></datalist>
+                    <input type="text" id="searchRep" placeholder="اختر أو ابحث عن المندوب..." oninput="filterDropdown('searchRep', 'repDropdown')" onfocus="showDropdown('repDropdown')">
+                    <div id="repDropdown" class="custom-dropdown-list"></div>
                 </div>
                 <div class="search-field-group">
                     <label>فريق المبيعات:</label>
-                    <input type="text" id="searchTeam" list="teamList" placeholder="اختر أو ابحث عن الفريق..." oninput="executeFiltering()">
-                    <datalist id="teamList"></datalist>
+                    <input type="text" id="searchTeam" placeholder="اختر أو ابحث عن الفريق..." oninput="filterDropdown('searchTeam', 'teamDropdown')" onfocus="showDropdown('teamDropdown')">
+                    <div id="teamDropdown" class="custom-dropdown-list"></div>
                 </div>
                 <div class="search-field-group">
                     <label>المنتج / الصنف:</label>
-                    <input type="text" id="searchItem" list="itemList" placeholder="اختر أو ابحث عن الصنف..." oninput="executeFiltering()">
-                    <datalist id="itemList"></datalist>
+                    <input type="text" id="searchItem" placeholder="اختر أو ابحث عن الصنف..." oninput="filterDropdown('searchItem', 'itemDropdown')" onfocus="showDropdown('itemDropdown')">
+                    <div id="itemDropdown" class="custom-dropdown-list"></div>
                 </div>
                 <div>
-                    <button class="btn-search-action" onclick="executeFiltering()">🔍 بحث</button>
+                    <button class="btn-search-action" onclick="executeFiltering(); hideAllDropdowns();">🔍 بحث</button>
                 </div>
             </div>
         </div>
@@ -309,6 +341,11 @@
         let exportableRowsData = []; 
         let db;
 
+        let masterClients = [];
+        let masterReps = [];
+        let masterTeams = [];
+        let masterItems = [];
+
         function initDB() {
             let request = indexedDB.open("SalesSystemDB_V5", 1);
             
@@ -326,13 +363,6 @@
             };
         }
 
-        function saveToDB(headers, data, fileName) {
-            if (!db) return;
-            let transaction = db.transaction(["files"], "readwrite");
-            let store = transaction.objectStore("files");
-            store.put({ headers: headers, data: data, name: fileName }, "currentExcelFile");
-        }
-
         function loadStoredData() {
             if (!db) return;
             let transaction = db.transaction(["files"], "readonly");
@@ -348,7 +378,7 @@
                     exportableRowsData = [...globalAllData];
                     document.getElementById('statusText').innerText = `⚡ تم تحميل الملف المخزن (${globalAllData.length} سجل).`;
                     document.getElementById('uploadLabel').innerText = '📁 استبدال بملف جديد';
-                    populateDropdowns();
+                    extractDropdownData();
                     renderTable();
                 } else {
                     document.getElementById('statusText').innerText = `📂 يرجى اختيار ملف الاكسيل الجديد للبدء...`;
@@ -356,7 +386,14 @@
             };
         }
 
-        window.onload = function() { initDB(); };
+        window.onload = function() { 
+            initDB(); 
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.search-field-group')) {
+                    hideAllDropdowns();
+                }
+            });
+        };
 
         function formatExcelDate(val) {
             if (!val && val !== 0) return "";
@@ -438,7 +475,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function populateDropdowns() {
+        function extractDropdownData() {
             let clientIdx = -1, repIdx = -1, teamIdx = -1, itemIdx = -1;
             tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
@@ -456,20 +493,62 @@
                 if (itemIdx !== -1 && row[itemIdx]) items.add(String(row[itemIdx]).trim());
             });
 
-            let fillDatalist = (id, setObj) => {
-                let dl = document.getElementById(id);
-                dl.innerHTML = '';
-                Array.from(setObj).sort().forEach(val => {
-                    let opt = document.createElement('option');
-                    opt.value = val;
-                    dl.appendChild(opt);
-                });
-            };
+            masterClients = Array.from(clients).sort();
+            masterReps = Array.from(reps).sort();
+            masterTeams = Array.from(teams).sort();
+            masterItems = Array.from(items).sort();
 
-            fillDatalist('clientList', clients);
-            fillDatalist('repList', reps);
-            fillDatalist('teamList', teams);
-            fillDatalist('itemList', items);
+            renderDropdownItems('clientDropdown', masterClients, 'searchClient');
+            renderDropdownItems('repDropdown', masterReps, 'searchRep');
+            renderDropdownItems('teamDropdown', masterTeams, 'searchTeam');
+            renderDropdownItems('itemDropdown', masterItems, 'searchItem');
+        }
+
+        function renderDropdownItems(dropdownId, itemsArray, inputId) {
+            let container = document.getElementById(dropdownId);
+            container.innerHTML = '';
+            
+            if (itemsArray.length === 0) {
+                container.innerHTML = '<div class="custom-dropdown-item" style="color: #94a3b8; cursor: default;">لا توجد نتائج مطابقة</div>';
+                return;
+            }
+
+            itemsArray.forEach(val => {
+                let div = document.createElement('div');
+                div.className = 'custom-dropdown-item';
+                div.innerText = val;
+                div.title = val;
+                div.onclick = function() {
+                    document.getElementById(inputId).value = val;
+                    hideAllDropdowns();
+                    executeFiltering();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function showDropdown(dropdownId) {
+            hideAllDropdowns();
+            document.getElementById(dropdownId).style.display = 'block';
+        }
+
+        function hideAllDropdowns() {
+            let dropdowns = document.querySelectorAll('.custom-dropdown-list');
+            dropdowns.forEach(d => d.style.display = 'none');
+        }
+
+        function filterDropdown(inputId, dropdownId) {
+            let query = document.getElementById(inputId).value.toLowerCase().trim();
+            let sourceArray = [];
+            if (inputId === 'searchClient') sourceArray = masterClients;
+            else if (inputId === 'searchRep') sourceArray = masterReps;
+            else if (inputId === 'searchTeam') sourceArray = masterTeams;
+            else if (inputId === 'searchItem') sourceArray = masterItems;
+
+            let filtered = sourceArray.filter(item => item.toLowerCase().includes(query));
+            renderDropdownItems(dropdownId, filtered, inputId);
+            showDropdown(dropdownId);
+            executeFiltering();
         }
 
         function getDynamicReportTitle() {
@@ -595,6 +674,7 @@
             document.getElementById('searchRep').value = '';
             document.getElementById('searchTeam').value = '';
             document.getElementById('searchItem').value = '';
+            hideAllDropdowns();
             displayedRowsData = [...globalAllData];
             exportableRowsData = [...globalAllData];
             renderTableBodyAndTotals();
@@ -639,26 +719,8 @@
 
         function printReport() { window.print(); }
 
-        // --- دمج وتفعيل تقارير المقارنة (بدون حذف أي جزء) ---
         function openComparisonWindow() {
             if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير المقارنة!"); return; }
-            
-            let repIdx = -1, teamIdx = -1, dateIdx = -1, valIdx = -1;
-            tableHeaders.forEach((h, idx) => {
-                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
-                if (hStr.includes('مندوب') || hStr.includes('rep')) repIdx = idx;
-                if (hStr.includes('فريق') || hStr.includes('team')) teamIdx = idx;
-                if (hStr.includes('تاريخ') || hStr.includes('date')) dateIdx = idx;
-                if ((hStr.includes('بدون') && hStr.includes('ض')) || hStr === 'المبلغ' || hStr.includes('القيمة') || (hStr.includes('إجمالي') && !hStr.includes('شامل'))) {
-                    if (valIdx === -1) valIdx = idx;
-                }
-            });
-
-            if (repIdx === -1 && teamIdx === -1) {
-                alert("لم يتم العثور على عمود المندوب او فريق المبيعات في الملف!");
-                return;
-            }
-
             let compWindow = window.open('', '_blank');
             compWindow.document.write(`
                 <html lang="ar" dir="rtl">
@@ -681,9 +743,9 @@
                         <thead>
                             <tr>
                                 <th>المندوب / الفريق</th>
-                                <th>سنة 2024 (أو الأقدم)</th>
+                                <th>سنة 2024</th>
                                 <th>سنة 2025</th>
-                                <th>سنة 2026 (أو الأحدث)</th>
+                                <th>سنة 2026</th>
                                 <th>إجمالي المبيعات</th>
                             </tr>
                         </thead>
@@ -699,7 +761,6 @@
 
         function openClientComparisonWindow() {
             if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء!"); return; }
-            
             let clientWindow = window.open('', '_blank');
             clientWindow.document.write(`
                 <html lang="ar" dir="rtl">
