@@ -345,9 +345,10 @@
         let tableHeaders = [];
         let db;
         let masterYears = new Set();
+        let compWindowRef = null;
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V10", 1);
+            let request = indexedDB.open("SalesSystemDB_V11", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -801,16 +802,16 @@
 
             compWindow.document.write(popupContent);
             compWindow.document.close();
-            window.compWindowRef = compWindow;
+            compWindowRef = compWindow;
         }
 
-        window.updatePopupTable = function(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
+        function updatePopupTable(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex) {
             let res = calculateReportData(fTeam, fRep, fYear, fMonth, teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex);
-            if (window.compWindowRef && !window.compWindowRef.closed) {
-                let doc = window.compWindowRef.document;
+            if (compWindowRef && !compWindowRef.closed) {
+                let doc = compWindowRef.document;
                 doc.querySelector('table').innerHTML = `<thead>${res.topHeaderHtml}${res.subHeaderHtml}</thead><tbody id="popupBody">${res.tableRowsHtml}</tbody>`;
             }
-        };
+        }
 
         function exportToExcel() { alert("استخدم نافذة التقرير التفصيلي للطباعة والتصدير المناسب."); }
         function exportToPDFFile() { window.print(); }
