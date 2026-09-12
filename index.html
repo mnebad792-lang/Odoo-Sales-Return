@@ -262,6 +262,30 @@
             margin-bottom: 15px;
             color: #1e293b;
         }
+
+        /* نافذة اختيار الأعمدة المنبثقة */
+        #configModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .modal-content h3 { margin-top: 0; color: var(--dark-color); font-size: 16px; }
+        .modal-field { margin-bottom: 12px; }
+        .modal-field label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #475569; }
+        .modal-field select { width: 100%; padding: 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -282,8 +306,8 @@
         </div>
 
         <div style="text-align: center; margin: 15px 0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-            <button class="action-btn btn-compare" onclick="openComparisonWindow()">⚖️ تقرير مقارنة السنوات (للمندوبين والفرق)</button>
-            <button class="action-btn btn-compare-client" onclick="openClientComparisonWindow()">⚖️ تقرير مقارنة السنوات (للعملاء)</button>
+            <button class="action-btn btn-compare" onclick="promptComparisonConfig('rep')">⚖️ تقرير مقارنة السنوات (للمندوبين والفرق)</button>
+            <button class="action-btn btn-compare-client" onclick="promptComparisonConfig('client')">⚖️ تقرير مقارنة السنوات (للعملاء)</button>
         </div>
 
         <div class="quick-search-panel">
@@ -333,12 +357,36 @@
         </div>
     </div>
 
+    <!-- نافذة منبثقة لتحديد أعمدة التقرير بدقة -->
+    <div id="configModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">إعداد تقرير المقارنة</h3>
+            <div class="modal-field">
+                <label id="modalCategoryLabel">عمود التصنيف:</label>
+                <select id="modalCategoryCol"></select>
+            </div>
+            <div class="modal-field">
+                <label>عمود التاريخ:</label>
+                <select id="modalDateCol"></select>
+            </div>
+            <div class="modal-field">
+                <label>عمود المبلغ / القيمة:</label>
+                <select id="modalValueCol"></select>
+            </div>
+            <div class="modal-buttons">
+                <button class="action-btn btn-reset" onclick="closeModal()">إلغاء</button>
+                <button class="action-btn btn-excel" onclick="generateConfirmedReport()">عرض التقرير</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let globalAllData = [];
         let tableHeaders = [];
         let displayedRowsData = []; 
         let exportableRowsData = []; 
         let db;
+        let currentReportType = '';
 
         let masterClients = [];
         let masterReps = [];
@@ -346,7 +394,7 @@
         let masterItems = [];
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V5", 1);
+            let request = indexedDB.open("SalesSystemDB_V6", 1);
             
             request.onsuccess = function(event) {
                 db = event.target.result;
@@ -722,67 +770,100 @@
 
         function printReport() { window.print(); }
 
-        // فتح وتحليل تقرير مقارنة السنوات للمندوبين والفرق
-        function openComparisonWindow() {
-            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير المقارنة!"); return; }
-            
-            let repIdx = -1, dateIdx = -1, valIdx = -1;
+        // نافذة إعداد الأعمدة اليدوية لضمان نجاح التقرير
+        function promptComparisonConfig(type) {
+            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً!"); return; }
+            currentReportType = type;
+
+            let catSelect = document.getElementById('modalCategoryCol');
+            let dateSelect = document.getElementById('modalDateCol');
+            let valSelect = document.getElementById('modalValueCol');
+
+            catSelect.innerHTML = '';
+            dateSelect.innerHTML = '';
+            valSelect.innerHTML = '';
+
             tableHeaders.forEach((h, idx) => {
-                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
-                if (hStr.includes('مندوب') || hStr.includes('rep') || hStr.includes('فريق') || hStr.includes('team')) {
-                    if (repIdx === -1) repIdx = idx;
-                }
-                if (hStr.includes('تاريخ') || hStr.includes('date')) dateIdx = idx;
-                if ((hStr.includes('بدون') && hStr.includes('ض')) || hStr === 'المبلغ' || hStr.includes('القيمة') || (hStr.includes('إجمالي') && !hStr.includes('شامل'))) {
-                    if (valIdx === -1) valIdx = idx;
-                }
+                let opt1 = document.createElement('option');
+                opt1.value = idx;
+                opt1.innerText = h || `عمود ${idx+1}`;
+                catSelect.appendChild(opt1);
+
+                let opt2 = document.createElement('option');
+                opt2.value = idx;
+                opt2.innerText = h || `عمود ${idx+1}`;
+                dateSelect.appendChild(opt2);
+
+                let opt3 = document.createElement('option');
+                opt3.value = idx;
+                opt3.innerText = h || `عمود ${idx+1}`;
+                valSelect.appendChild(opt3);
+
+                let hStr = String(h || "").toLowerCase();
+                if (type === 'rep' && (hStr.includes('مندوب') || hStr.includes('rep') || hStr.includes('فريق'))) catSelect.value = idx;
+                if (type === 'client' && (hStr.includes('عميل') || hStr.includes('customer'))) catSelect.value = idx;
+                if (hStr.includes('تاريخ') || hStr.includes('date')) dateSelect.value = idx;
+                if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي')) valSelect.value = idx;
             });
 
-            if (repIdx === -1 || dateIdx === -1 || valIdx === -1) {
-                alert("تعذر تحديد أعمدة المندوب/الفريق أو التاريخ أو المبلغ تلقائياً من الملف.");
-                return;
-            }
+            document.getElementById('modalTitle.innerText').innerText = type === 'rep' ? 'إعداد تقرير مقارنة المندوبين والفرق' : 'إعداد تقرير مقارنة العملاء';
+            document.getElementById('modalCategoryLabel').innerText = type === 'rep' ? 'اختر عمود (المندوب أو الفريق):' : 'اختر عمود (العميل):';
+            document.getElementById('configModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+
+        function generateConfirmedReport() {
+            let catIdx = Number(document.getElementById('modalCategoryCol').value);
+            let dateIdx = Number(document.getElementById('modalDateCol').value);
+            let valIdx = Number(document.getElementById('modalValueCol').value);
+            closeModal();
 
             let summaryMap = {};
             let yearsSet = new Set();
 
             globalAllData.forEach(row => {
-                let repName = String(row[repIdx] || "غير محدد").trim();
+                let catName = String(row[catIdx] || "غير محدد").trim();
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "غير محدد";
                 let amount = Number(row[valIdx]) || 0;
 
                 if (year !== "غير محدد") yearsSet.add(year);
 
-                if (!summaryMap[repName]) summaryMap[repName] = {};
-                if (!summaryMap[repName][year]) summaryMap[repName][year] = 0;
-                summaryMap[repName][year] += amount;
+                if (!summaryMap[catName]) summaryMap[catName] = {};
+                if (!summaryMap[catName][year]) summaryMap[catName][year] = 0;
+                summaryMap[catName][year] += amount;
             });
 
             let sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
             if (sortedYears.length === 0) sortedYears = [2024, 2025, 2026];
 
             let compWindow = window.open('', '_blank');
-            let tableHeadersHtml = `<th>المندوب / الفريق</th>`;
+            let titleText = currentReportType === 'rep' ? "⚖️ تقرير مقارنة السنوات (للمندوبين والفرق)" : "⚖️ تقرير مقارنة السنوات (للعملاء)";
+            let colTitle = currentReportType === 'rep' ? "المندوب / الفريق" : "اسم العميل";
+
+            let tableHeadersHtml = `<th>${colTitle}</th>`;
             sortedYears.forEach(y => { tableHeadersHtml += `<th>سنة ${y}</th>`; });
             tableHeadersHtml += `<th>إجمالي المبيعات</th>`;
 
             let tableRowsHtml = '';
-            Object.keys(summaryMap).sort().forEach(rep => {
-                tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${rep}</td>`;
-                let repTotal = 0;
+            Object.keys(summaryMap).sort().forEach(cat => {
+                tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${cat}</td>`;
+                let rowTotal = 0;
                 sortedYears.forEach(y => {
-                    let yVal = summaryMap[rep][y] || 0;
-                    repTotal += yVal;
+                    let yVal = summaryMap[cat][y] || 0;
+                    rowTotal += yVal;
                     tableRowsHtml += `<td>${yVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
                 });
-                tableRowsHtml += `<td style="font-weight:bold; background:#f1f5f9;">${repTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+                tableRowsHtml += `<td style="font-weight:bold; background:#f1f5f9;">${rowTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
             });
 
             compWindow.document.write(`
                 <html lang="ar" dir="rtl">
                 <head>
-                    <title>تقرير مقارنة السنوات (المندوبين والفرق)</title>
+                    <title>${titleText}</title>
                     <style>
                         body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
                         h2 { text-align: center; color: #2563eb; }
@@ -794,7 +875,7 @@
                     </style>
                 </head>
                 <body>
-                    <h2>⚖️ تقرير مقارنة السنوات (للمندوبين والفرق)</h2>
+                    <h2>${titleText}</h2>
                     <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
                     <table>
                         <thead><tr>${tableHeadersHtml}</tr></thead>
@@ -804,88 +885,6 @@
                 </html>
             `);
             compWindow.document.close();
-        }
-
-        // فتح وتحليل تقرير مقارنة السنوات للعملاء
-        function openClientComparisonWindow() {
-            if (globalAllData.length === 0) { alert("يرجى تحميل ملف البيانات أولاً لاستخراج تقرير مقارنة العملاء!"); return; }
-            
-            let clientIdx = -1, dateIdx = -1, valIdx = -1;
-            tableHeaders.forEach((h, idx) => {
-                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
-                if (hStr.includes('عميل') || hStr.includes('customer')) clientIdx = idx;
-                if (hStr.includes('تاريخ') || hStr.includes('date')) dateIdx = idx;
-                if ((hStr.includes('بدون') && hStr.includes('ض')) || hStr === 'المبلغ' || hStr.includes('القيمة') || (hStr.includes('إجمالي') && !hStr.includes('شامل'))) {
-                    if (valIdx === -1) valIdx = idx;
-                }
-            });
-
-            if (clientIdx === -1 || dateIdx === -1 || valIdx === -1) {
-                alert("تعذر تحديد أعمدة العميل أو التاريخ أو المبلغ تلقائياً من الملف.");
-                return;
-            }
-
-            let clientSummary = {};
-            let yearsSet = new Set();
-
-            globalAllData.forEach(row => {
-                let clientName = String(row[clientIdx] || "عميل غير محدد").trim();
-                let dObj = parseRowDate(row[dateIdx]);
-                let year = dObj ? dObj.getFullYear() : "غير محدد";
-                let amount = Number(row[valIdx]) || 0;
-
-                if (year !== "غير محدد") yearsSet.add(year);
-
-                if (!clientSummary[clientName]) clientSummary[clientName] = {};
-                if (!clientSummary[clientName][year]) clientSummary[clientName][year] = 0;
-                clientSummary[clientName][year] += amount;
-            });
-
-            let sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
-            if (sortedYears.length === 0) sortedYears = [2024, 2025, 2026];
-
-            let clientWindow = window.open('', '_blank');
-            let tableHeadersHtml = `<th>اسم العميل</th>`;
-            sortedYears.forEach(y => { tableHeadersHtml += `<th>سنة ${y}</th>`; });
-            tableHeadersHtml += `<th>الإجمالي العام</th>`;
-
-            let tableRowsHtml = '';
-            Object.keys(clientSummary).sort().forEach(client => {
-                tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${client}</td>`;
-                let clientTotal = 0;
-                sortedYears.forEach(y => {
-                    let yVal = clientSummary[client][y] || 0;
-                    clientTotal += yVal;
-                    tableRowsHtml += `<td>${yVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`;
-                });
-                tableRowsHtml += `<td style="font-weight:bold; background:#f1f5f9;">${clientTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
-            });
-
-            clientWindow.document.write(`
-                <html lang="ar" dir="rtl">
-                <head>
-                    <title>تقرير مقارنة السنوات للعملاء</title>
-                    <style>
-                        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
-                        h2 { text-align: center; color: #0d9488; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-                        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-size: 11pt; }
-                        th { background: #1e293b; color: white; }
-                        tr:hover { background: #f1f5f9; }
-                        .print-btn { display: block; margin: 20px auto; background: #0d9488; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <h2>⚖️ تقرير مقارنة السنوات (للعملاء)</h2>
-                    <button class="print-btn" onclick="window.print()">🖨️ طباعة التقرير</button>
-                    <table>
-                        <thead><tr>${tableHeadersHtml}</tr></thead>
-                        <tbody>${tableRowsHtml}</tbody>
-                    </table>
-                </body>
-                </html>
-            `);
-            clientWindow.document.close();
         }
     </script>
 </body>
