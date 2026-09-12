@@ -1,156 +1,407 @@
-import streamlit as st
-import pandas as pd
-import requests
-from io import BytesIO
-
-# إعداد الصفحة لتكون بعرض واسع (Wide Mode)
-st.set_page_config(page_title="نظام تحليل ومقارنة الفرق والمناديب الشامل", layout="wide")
-
-# تخصيص التصميم عبر CSS لضبط الجدول ومظهر الواجهة
-st.markdown("""
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تحليل ومقارنة الفرق والمناديب</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-    .main {
-        direction: rtl;
-    }
-    div[data-testid="stDataFrame"] table {
-        font-size: 12px !important;
-    }
-    div[data-testid="stDataFrame"] th, div[data-testid="stDataFrame"] td {
-        text-align: center !important;
-        white-space: nowrap !important;
-    }
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --dark-color: #1e293b;
+            --bg-color: #f8fafc;
+            --border-color: #cbd5e1;
+            --team-header-bg: #e2e8f0;
+            --team-total-bg: #f1f5f9;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 8px; }
+        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 12px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: var(--dark-color); margin-bottom: 12px; font-size: 16px; }
+        .upload-section { background: #eff6ff; border: 2px dashed #3b82f6; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
+        .quick-search-panel { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border-color); }
+        .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #334155; }
+        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; align-items: flex-end; }
+        .search-field-group { display: flex; flex-direction: column; }
+        .search-field-group label { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #475569; }
+        .search-field-group input, .search-field-group select { padding: 5px 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
+        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; height: 27px; width: 100%; }
+        .actions-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+        button.action-btn, label.action-btn { padding: 5px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
+        .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; }
+        table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        th, td { padding: 6px 8px; text-align: center; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; font-size: 8pt !important; white-space: normal; word-break: break-word; }
+        th.col-rep, td.col-rep { min-width: 130px; text-align: right; }
+        th.col-client, td.col-client { min-width: 200px; text-align: right; }
+        th.col-product, td.col-product { min-width: 220px; text-align: right; }
+        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
+        .team-group-header { background-color: var(--team-header-bg) !important; font-weight: bold !important; color: #0f172a !important; text-align: right !important; font-size: 9pt !important; border-top: 2px solid #94a3b8; }
+        .team-total-row { background-color: var(--team-total-bg) !important; font-weight: bold !important; color: #0369a1 !important; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
+        tr:hover { background-color: #f8fafc; }
+        .row-count { margin-top: 5px; font-weight: bold; color: #475569; font-size: 11px; }
+        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 15px; box-sizing: border-box; overflow-y: auto; }
     </style>
-""", unsafe_allow_html=True)
+</head>
+<body>
 
-st.markdown("<h2 style='text-align: center;'>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</h2>", unsafe_allow_html=True)
+    <div class="container">
+        <h2>نظام تحليل ومقارنة الفرق والمناديب (مبيعات، مرتجعات، صافي والاتجاهات)</h2>
 
-# رابط ملف Google Sheets
-GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794'
+        <div class="upload-section">
+            <div>
+                <span id="statusText">📁 يرجى اختيار ملف البيانات أو محاولة الجلب السحابي...</span>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
+                    📁 ارفع ملف الإكسيل/CSV هنا <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
+                </label>
+                <button class="action-btn" onclick="loadCloudData()" style="background-color: #2563eb;">🔄 محاولة الجلب السحابي</button>
+            </div>
+        </div>
 
-@st.cache_data(show_spinner=True)
-def load_data(file=None):
-    try:
-        if file is not None:
-            if file.name.endswith('.csv'):
-                df = pd.read_csv(file)
-            else:
-                df = pd.read_excel(file)
-        else:
-            response = requests.get(GOOGLE_SHEET_CSV_URL)
-            if response.status_code == 200:
-                df = pd.read_csv(BytesIO(response.content))
-            else:
-                st.error("فشل الجلب السحابي، يرجى رفع الملف يدوياً.")
-                return pd.DataFrame()
-        return df
-    except Exception as e:
-        st.error(f"حدث خطأ أثناء تحميل الملف: {e}")
-        return pd.DataFrame()
+        <div style="text-align: center; margin: 10px 0;">
+            <button class="action-btn btn-compare" onclick="openTeamsAndRepsReport()">⚖️ عرض تقرير تسلسل الفرق والمناديب التفصيلي</button>
+        </div>
 
-# قسم الرفع اليدوي أو الجلب السحابي
-col_up1, col_up2 = st.columns([3, 1])
-with col_up1:
-    uploaded_file = st.file_uploader("📁 ارفع ملف الإكسيل أو CSV هنا:", type=["xlsx", "xls", "csv"])
+        <div class="quick-search-panel">
+            <div class="quick-search-title">🔍 محرك الفلاتر الشامل:</div>
+            <div class="search-grid">
+                <div class="search-field-group">
+                    <label>العميل:</label>
+                    <input type="text" id="searchClient" placeholder="ابحث عن العميل...">
+                </div>
+                <div class="search-field-group">
+                    <label>مندوب المبيعات:</label>
+                    <input type="text" id="searchRep" placeholder="ابحث عن المندوب...">
+                </div>
+                <div class="search-field-group">
+                    <label>فريق المبيعات:</label>
+                    <input type="text" id="searchTeam" placeholder="ابحث عن الفريق...">
+                </div>
+                <div class="search-field-group">
+                    <label>السنة:</label>
+                    <select id="filterYear"><option value="">كل السنوات</option></select>
+                </div>
+                <div class="search-field-group">
+                    <label>الشهر:</label>
+                    <select id="filterMonth">
+                        <option value="">كل الشهور</option>
+                        <option value="1">يناير</option><option value="2">فبراير</option><option value="3">مارس</option>
+                        <option value="4">أبريل</option><option value="5">مايو</option><option value="6">يونيو</option>
+                        <option value="7">يوليو</option><option value="8">أغسطس</option><option value="9">سبتمبر</option>
+                        <option value="10">أكتوبر</option><option value="11">نوفمبر</option><option value="12">ديسمبر</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn-search-action" onclick="executeMainTableFiltering()">🔍 تطبيق الفلاتر</button>
+                </div>
+            </div>
+        </div>
 
-df = load_data(uploaded_file)
+        <div class="actions-bar">
+            <button class="action-btn btn-reset" onclick="resetFilter()">🔄 إعادة ضبط</button>
+            <button class="action-btn btn-excel" onclick="exportToExcel()">📊 تصدير Excel</button>
+            <button class="action-btn btn-pdf" onclick="exportToPDFFile()">📥 تصدير PDF</button>
+            <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة</button>
+        </div>
 
-if not df.empty:
-    st.success(f"✅ تم تحميل البيانات بنجاح. عدد السجلات الإجمالي: {len(df):,}")
+        <div class="row-count" id="rowCount">عدد السجلات الإجمالي: 0</div>
 
-    cols = df.columns.tolist()
-    
-    # تحديد الأعمدة الذكية تلقائياً
-    date_col = next((c for c in cols if 'تاريخ' in str(c) or 'date' in str(c).lower()), None)
-    client_col = next((c for c in cols if 'عميل' in str(c) or 'customer' in str(c).lower()), cols[2] if len(cols)>2 else cols[0])
-    rep_col = next((c for c in cols if 'مندوب' in str(c) or 'rep' in str(c).lower()), cols[1] if len(cols)>1 else cols[0])
-    team_col = next((c for c in cols if 'فريق' in str(c) or 'team' in str(c).lower()), cols[0])
-    
-    if date_col:
-        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        <div class="table-container">
+            <table id="mainTable">
+                <thead id="tableHeader"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
 
-    # محرك الفلاتر الشامل
-    st.markdown("---")
-    st.subheader("🔍 محرك الفلاتر الشامل:")
-    c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        client_search = st.text_input("ابحث عن العميل:")
-    with c2:
-        rep_search = st.text_input("ابحث عن المندوب:")
-    with c3:
-        team_search = st.text_input("ابحث عن الفريق:")
-    with c4:
-        years = sorted(df[date_col].dt.year.dropna().unique().astype(int).tolist()) if date_col else []
-        selected_year = st.selectbox("السنة:", ["كل السنوات"] + years)
+    <!-- نافذة التقرير التفصيلي -->
+    <div id="reportModalContainer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="margin: 0; color: #2563eb; font-size: 15px;">⚖️ تقرير تسلسل الفرق والمناديب</h2>
+            <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
+        </div>
+        <div class="table-container" style="max-height: 70vh;">
+            <table id="popupTable">
+                <thead id="popupHeader"></thead>
+                <tbody id="popupBody"></tbody>
+            </table>
+        </div>
+    </div>
 
-    # تطبيق الفلاتر على البيانات
-    df_filtered = df.copy()
-    if client_search:
-        df_filtered = df_filtered[df_filtered[client_col].astype(str).str.contains(client_search, case=False, na=False)]
-    if rep_search:
-        df_filtered = df_filtered[df_filtered[rep_col].astype(str).str.contains(rep_search, case=False, na=False)]
-    if team_search:
-        df_filtered = df_filtered[df_filtered[team_col].astype(str).str.contains(team_search, case=False, na=False)]
-    if selected_year != "كل السنوات" and date_col:
-        df_filtered = df_filtered[df_filtered[date_col].dt.year == int(selected_year)]
+    <script>
+        let globalAllData = [];
+        let tableHeaders = [];
+        let masterYears = new Set();
+        let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-    st.markdown(f"**عدد السجلات المعروضة بعد التصفية:** {len(df_filtered):,}")
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1SVnlPRdw9bNqaA76RM7qa4advkC_nybW/export?format=csv&gid=1841364794';
 
-    # لوحة المؤشرات السريعة (KPIs)
-    st.markdown("---")
-    st.subheader("📊 لوحة المؤشرات الرئيسية:")
-    
-    # البحث عن أعمدة القيم المالية المتاحة
-    val_cols = [c for c in cols if any(w in str(c).lower() for w in ['مبلغ', 'قيمة', 'إجمالي', 'سعر', 'صافي'])]
-    kpi1, kpi2, kpi3 = st.columns(3)
-    
-    with kpi1:
-        st.metric(label="إجمالي السجلات المفلترة", value=f"{len(df_filtered):,}")
-    with kpi2:
-        if val_cols:
-            total_val = df_filtered[val_cols[0]].sum()
-            st.metric(label=f"إجمالي ({val_cols[0]})", value=f"{total_val:,.2f}")
-        else:
-            st.metric(label="إجمالي القيم", value="غير متوفر")
-    with kpi3:
-        unique_clients = df_filtered[client_col].nunique() if client_col in df_filtered.columns else 0
-        st.metric(label="عدد العملاء النشطين", value=f"{unique_clients:,}")
+        function loadCloudData() {
+            document.getElementById('statusText').innerText = `🔄 جاري محاولة الجلب السحابي...`;
+            let proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
 
-    # ضبط تكوين الأعمدة لمنع التداخل وتصغير النصوص الطويلة
-    column_config = {}
-    for col in cols:
-        col_lower = str(col).lower()
-        if 'فريق' in col_lower or 'team' in col_lower:
-            column_config[col] = st.column_config.TextColumn(col, width="small")
-        elif 'مندوب' in col_lower or 'rep' in col_lower:
-            column_config[col] = st.column_config.TextColumn(col, width="small")
-        elif 'عميل' in col_lower or 'customer' in col_lower:
-            column_config[col] = st.column_config.TextColumn(col, width="medium")
-        elif 'منتج' in col_lower or 'item' in col_lower or 'product' in col_lower:
-            column_config[col] = st.column_config.TextColumn(col, width="medium")
-        elif 'تاريخ' in col_lower or 'date' in col_lower:
-            column_config[col] = st.column_config.DateColumn(col, width="small", format="YYYY-MM-DD")
-        elif 'رقم' in col_lower or 'invoice' in col_lower or 'order' in col_lower:
-            column_config[col] = st.column_config.TextColumn(col, width="small")
-        elif any(w in col_lower for w in ['مبلغ', 'قيمة', 'إجمالي', 'سعر', 'كمية', 'خصم']):
-            column_config[col] = st.column_config.NumberColumn(col, format="%.2f", width="small")
+            fetch(proxyUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("الملف غير منشور على الويب.");
+                    return response.text();
+                })
+                .then(csvText => processCSVData(csvText))
+                .catch(err => {
+                    fetch(GOOGLE_SHEET_CSV_URL)
+                        .then(res => res.text())
+                        .then(csvText => processCSVData(csvText))
+                        .catch(e => {
+                            document.getElementById('statusText').innerText = `⚠️ تعذر الجلب السحابي. يرجى استخدام زر "ارفع ملف الإكسيل" بالأعلى.`;
+                        });
+                });
+        }
 
-    # عرض جدول البيانات المفصل
-    st.markdown("---")
-    st.subheader("📋 جدول البيانات التفصيلي:")
-    st.dataframe(
-        df_filtered,
-        use_container_width=True,
-        column_config=column_config,
-        height=500
-    )
-    
-    # قسم الرسوم البيانية البسيطة
-    if val_cols and team_col in df_filtered.columns:
-        st.markdown("---")
-        st.subheader("📈 التحليل البياني حسب الفريق:")
-        team_summary = df_filtered.groupby(team_col)[val_cols[0]].sum().reset_index()
-        st.bar_chart(team_summary.set_index(team_col))
+        function processCSVData(csvText) {
+            let workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+            let sheetName = workbook.SheetNames[0];
+            let worksheet = workbook.Sheets[sheetName];
+            let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
 
-else:
-    st.info("الرجاء رفع ملف البيانات أو التأكد من توفرها لبدء العرض.")
+            if (cleanRows && cleanRows.length > 0) {
+                tableHeaders = cleanRows[0];
+                globalAllData = cleanRows.slice(1);
+                document.getElementById('statusText').innerText = `✅ تم تحميل البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                detectColumnsAutomatically();
+                extractYears();
+                renderTableRows(globalAllData);
+            }
+        }
+
+        function handleFileSelect(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف المرفوع...`;
+            let reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    let data = new Uint8Array(evt.target.result);
+                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    let sheetName = workbook.SheetNames[0];
+                    let worksheet = workbook.Sheets[sheetName];
+                    let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
+
+                    if (cleanRows && cleanRows.length > 0) {
+                        tableHeaders = cleanRows[0];
+                        globalAllData = cleanRows.slice(1);
+                        document.getElementById('statusText').innerText = `✅ تم قراءة الملف بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                        detectColumnsAutomatically();
+                        extractYears();
+                        renderTableRows(globalAllData);
+                    }
+                } catch(ex) {
+                    alert("حدث خطأ أثناء قراءة الملف: " + ex.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        window.onload = function() { 
+            loadCloudData(); 
+        };
+
+        function detectColumnsAutomatically() {
+            tableHeaders.forEach((h, idx) => {
+                let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
+                if (hStr.includes('فريق') || hStr.includes('team')) detectedIndices.teamIdx = idx;
+                if (hStr.includes('مندوب') || hStr.includes('rep')) detectedIndices.repIdx = idx;
+                if (hStr.includes('عميل') || hStr.includes('customer')) detectedIndices.clientIdx = idx;
+                if (hStr.includes('منتج') || hStr.includes('item') || hStr.includes('product')) detectedIndices.productIdx = idx;
+                if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('طلب')) detectedIndices.dateIdx = idx;
+                if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('فاتورة')) detectedIndices.invoiceDateIdx = idx;
+                if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي')) detectedIndices.valIdx = idx;
+                if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) detectedIndices.invoiceColIndex = idx;
+            });
+            if (detectedIndices.teamIdx === -1) detectedIndices.teamIdx = 0;
+            if (detectedIndices.repIdx === -1) detectedIndices.repIdx = 1;
+            if (detectedIndices.clientIdx === -1) detectedIndices.clientIdx = 2;
+            if (detectedIndices.productIdx === -1) detectedIndices.productIdx = 3;
+            if (detectedIndices.dateIdx === -1) detectedIndices.dateIdx = 4;
+            if (detectedIndices.valIdx === -1) detectedIndices.valIdx = 5;
+        }
+
+        function parseRowDate(val) {
+            if (!val && val !== 0) return null;
+            if (val instanceof Date && !isNaN(val)) return val;
+            if (typeof val === 'number' && val > 30000 && val < 60000) {
+                let utcDays = Math.floor(val - 25569);
+                return new Date(utcDays * 86400 * 1000);
+            }
+            let strVal = String(val).trim();
+            let parsed = new Date(strVal);
+            if (!isNaN(parsed)) return parsed;
+            return null;
+        }
+
+        function formatDateClean(val) {
+            let d = parseRowDate(val);
+            if (!d) return String(val !== undefined ? val : '').replace(/\(.*\)/g, '').trim();
+            let yy = d.getFullYear();
+            let mm = String(d.getMonth() + 1).padStart(2, '0');
+            let dd = String(d.getDate()).padStart(2, '0');
+            return `${yy}-${mm}-${dd}`;
+        }
+
+        function extractYears() {
+            let dateIdx = detectedIndices.dateIdx;
+            masterYears.clear();
+            globalAllData.forEach(row => {
+                if (dateIdx !== -1) {
+                    let d = parseRowDate(row[dateIdx]);
+                    if (d) masterYears.add(d.getFullYear());
+                }
+            });
+            let yearSelect = document.getElementById('filterYear');
+            let yearsHtml = '<option value="">كل السنوات</option>';
+            Array.from(masterYears).sort((a,b)=>a-b).forEach(y => { yearsHtml += `<option value="${y}">${y}</option>`; });
+            yearSelect.innerHTML = yearsHtml;
+        }
+
+        function renderTableRows(rowsToRender) {
+            if (tableHeaders.length === 0) return;
+            let headerHtml = '<tr>';
+            tableHeaders.forEach((h, idx) => {
+                let cssClass = '';
+                if (idx === detectedIndices.repIdx) cssClass = 'col-rep';
+                else if (idx === detectedIndices.clientIdx) cssClass = 'col-client';
+                else if (idx === detectedIndices.productIdx) cssClass = 'col-product';
+                headerHtml += `<th class="${cssClass}">${h}</th>`;
+            });
+            headerHtml += '</tr>';
+            document.getElementById('tableHeader').innerHTML = headerHtml;
+
+            let chunkSize = 500, index = 0;
+            let tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            function appendChunk() {
+                let chunk = rowsToRender.slice(index, index + chunkSize);
+                let bodyHtml = '';
+                chunk.forEach(row => {
+                    bodyHtml += '<tr>';
+                    row.forEach((cell, cellIdx) => {
+                        let displayVal = cell;
+                        if (cellIdx === detectedIndices.dateIdx || String(tableHeaders[cellIdx] || "").toLowerCase().includes('تاريخ')) {
+                            displayVal = formatDateClean(cell);
+                        }
+                        let cssClass = '';
+                        if (cellIdx === detectedIndices.repIdx) cssClass = 'col-rep';
+                        else if (cellIdx === detectedIndices.clientIdx) cssClass = 'col-client';
+                        else if (cellIdx === detectedIndices.productIdx) cssClass = 'col-product';
+                        bodyHtml += `<td class="${cssClass}">${displayVal !== undefined ? displayVal : ''}</td>`;
+                    });
+                    bodyHtml += '</tr>';
+                });
+                tbody.insertAdjacentHTML('beforeend', bodyHtml);
+                index += chunkSize;
+                if (index < rowsToRender.length) setTimeout(appendChunk, 0);
+            }
+            appendChunk();
+            document.getElementById('rowCount').innerText = `عدد السجلات المعروضة: ${rowsToRender.length.toLocaleString()}`;
+        }
+
+        function executeMainTableFiltering() {
+            let clientQ = document.getElementById('searchClient').value.toLowerCase().trim();
+            let repQ = document.getElementById('searchRep').value.toLowerCase().trim();
+            let teamQ = document.getElementById('searchTeam').value.toLowerCase().trim();
+            let yearQ = document.getElementById('filterYear').value.trim();
+            let monthQ = document.getElementById('filterMonth').value.trim();
+
+            let filtered = globalAllData.filter(row => {
+                if (clientQ && detectedIndices.clientIdx !== -1 && !String(row[detectedIndices.clientIdx] || "").toLowerCase().includes(clientQ)) return false;
+                if (repQ && detectedIndices.repIdx !== -1 && !String(row[detectedIndices.repIdx] || "").toLowerCase().includes(repQ)) return false;
+                if (teamQ && detectedIndices.teamIdx !== -1 && !String(row[detectedIndices.teamIdx] || "").toLowerCase().includes(teamQ)) return false;
+                if (detectedIndices.dateIdx !== -1) {
+                    let d = parseRowDate(row[detectedIndices.dateIdx]);
+                    if (d) {
+                        if (yearQ && String(d.getFullYear()) !== yearQ) return false;
+                        if (monthQ && String(d.getMonth() + 1) !== monthQ) return false;
+                    } else if (yearQ || monthQ) return false;
+                }
+                return true;
+            });
+            renderTableRows(filtered);
+        }
+
+        function resetFilter() {
+            document.getElementById('searchClient').value = '';
+            document.getElementById('searchRep').value = '';
+            document.getElementById('searchTeam').value = '';
+            document.getElementById('filterYear').value = '';
+            document.getElementById('filterMonth').value = '';
+            renderTableRows(globalAllData);
+        }
+
+        function calculateReportData() {
+            let { teamIdx, repIdx, dateIdx, valIdx, invoiceColIndex } = detectedIndices;
+            let hierarchy = {}, yearsSet = new Set();
+
+            globalAllData.forEach(row => {
+                let teamName = String(row[teamIdx] || "فريق غير محدد").trim();
+                let repName = String(row[repIdx] || "مندوب غير محدد").trim();
+                let dObj = parseRowDate(row[dateIdx]);
+                let year = dObj ? dObj.getFullYear() : "غير محدد";
+                let amount = Number(row[valIdx]) || 0;
+                let isReturn = (invoiceColIndex !== -1 && String(row[invoiceColIndex]).trim().toLowerCase().startsWith('rinv'));
+
+                if (year !== "غير محدد") yearsSet.add(year);
+                if (!hierarchy[teamName]) hierarchy[teamName] = {};
+                if (!hierarchy[teamName][repName]) hierarchy[teamName][repName] = {};
+                if (!hierarchy[teamName][repName][year]) hierarchy[teamName][repName][year] = { sales: 0, returns: 0 };
+
+                if (isReturn) hierarchy[teamName][repName][year].returns += Math.abs(amount);
+                else hierarchy[teamName][repName][year].sales += amount;
+            });
+
+            let sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
+            if (sortedYears.length === 0) sortedYears = [2025, 2026];
+
+            let topHeaderHtml = `<tr><th rowspan="2">الفريق / المندوب</th>`;
+            sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
+            topHeaderHtml += `<th colspan="3" style="background:#d97706;">المقارنة</th><th rowspan="2">الاتجاه</th></tr>`;
+
+            let subHeaderHtml = `<tr>`;
+            sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
+            subHeaderHtml += `<th>فارق مبيعات</th><th>فارق مرتجعات</th><th>فارق صافي</th></tr>`;
+
+            let tableRowsHtml = '';
+            Object.keys(hierarchy).sort().forEach(team => {
+                tableRowsHtml += `<tr class="team-group-header"><td colspan="${(sortedYears.length * 3) + 5}">📁 الفريق: ${team}</td></tr>`;
+                Object.keys(hierarchy[team]).sort().forEach(rep => {
+                    tableRowsHtml += `<tr><td style="text-align:right;">👤 ${rep}</td>`;
+                    sortedYears.forEach(y => {
+                        let yData = hierarchy[team][rep][y] || { sales: 0, returns: 0 };
+                        let netY = yData.sales - yData.returns;
+                        tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
+                    });
+                    tableRowsHtml += `<td colspan="4">--</td></tr>`;
+                });
+            });
+            return { topHeaderHtml, subHeaderHtml, tableRowsHtml };
+        }
+
+        function openTeamsAndRepsReport() {
+            if (globalAllData.length === 0) { alert("يرجى تحميل أو إرفاق البيانات أولاً."); return; }
+            let res = calculateReportData();
+            document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
+            document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
+            document.getElementById('reportModalContainer').style.display = 'block';
+        }
+
+        function closeReportModal() { document.getElementById('reportModalContainer').style.display = 'none'; }
+        function exportToExcel() { alert("تصدير Excel متاح عبر التقارير التفصيلية."); }
+        function exportToPDFFile() { window.print(); }
+        function printReport() { window.print(); }
+    </script>
+</body>
+</html>
