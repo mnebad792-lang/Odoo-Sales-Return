@@ -3,20 +3,18 @@ import pandas as pd
 import requests
 from io import BytesIO
 
-# إعداد الصفحة لتكون بعرض واسع (Wide Mode) لاستيعاب الجدول بشكل مريح
-st.set_page_config(page_title="نظام تحليل ومقارنة الفرق والمناديب", layout="wide")
+# إعداد الصفحة لتكون بعرض واسع (Wide Mode)
+st.set_page_config(page_title="نظام تحليل ومقارنة الفرق والمناديب الشامل", layout="wide")
 
-# تخصيص التصميم والتحكم في عرض أعمدة الجدول عبر CSS لتجنب أي تداخل في التواريخ والأرقام
+# تخصيص التصميم عبر CSS لضبط الجدول ومظهر الواجهة
 st.markdown("""
     <style>
     .main {
         direction: rtl;
     }
-    /* تنسيق وعرض أعمدة الجدول لضمان عدم التداخل */
     div[data-testid="stDataFrame"] table {
         font-size: 12px !important;
     }
-    /* تخصيص وتحديد حدود عرض الأعمدة النصية الكبيرة لترك مساحة للأرقام والتواريخ */
     div[data-testid="stDataFrame"] th, div[data-testid="stDataFrame"] td {
         text-align: center !important;
         white-space: nowrap !important;
@@ -38,7 +36,6 @@ def load_data(file=None):
             else:
                 df = pd.read_excel(file)
         else:
-            # محاولة الجلب السحابي
             response = requests.get(GOOGLE_SHEET_CSV_URL)
             if response.status_code == 200:
                 df = pd.read_csv(BytesIO(response.content))
@@ -50,7 +47,7 @@ def load_data(file=None):
         st.error(f"حدث خطأ أثناء تحميل الملف: {e}")
         return pd.DataFrame()
 
-# قسم الرفع اليدوي أو الجلب
+# قسم الرفع اليدوي أو الجلب السحابي
 col_up1, col_up2 = st.columns([3, 1])
 with col_up1:
     uploaded_file = st.file_uploader("📁 ارفع ملف الإكسيل أو CSV هنا:", type=["xlsx", "xls", "csv"])
@@ -60,10 +57,18 @@ df = load_data(uploaded_file)
 if not df.empty:
     st.success(f"✅ تم تحميل البيانات بنجاح. عدد السجلات الإجمالي: {len(df):,}")
 
-    # محاولة التعرف على الأعمدة لتطبيق التنسيقات الذكية
     cols = df.columns.tolist()
     
-    # فلاتر البحث السريع
+    # تحديد الأعمدة الذكية تلقائياً
+    date_col = next((c for c in cols if 'تاريخ' in str(c) or 'date' in str(c).lower()), None)
+    client_col = next((c for c in cols if 'عميل' in str(c) or 'customer' in str(c).lower()), cols[2] if len(cols)>2 else cols[0])
+    rep_col = next((c for c in cols if 'مندوب' in str(c) or 'rep' in str(c).lower()), cols[1] if len(cols)>1 else cols[0])
+    team_col = next((c for c in cols if 'فريق' in str(c) or 'team' in str(c).lower()), cols[0])
+    
+    if date_col:
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+
+    # محرك الفلاتر الشامل
     st.markdown("---")
     st.subheader("🔍 محرك الفلاتر الشامل:")
     c1, c2, c3, c4 = st.columns(4)
@@ -75,34 +80,43 @@ if not df.empty:
     with c3:
         team_search = st.text_input("ابحث عن الفريق:")
     with c4:
-        # البحث عن عمود السنة إن وجد
-        date_col = next((c for c in cols if 'تاريخ' in str(c) or 'date' in str(c).lower()), None)
-        years = []
-        if date_col:
-            df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
-            years = sorted(df[date_col].dt.year.dropna().unique().astype(int).tolist())
+        years = sorted(df[date_col].dt.year.dropna().unique().astype(int).tolist()) if date_col else []
         selected_year = st.selectbox("السنة:", ["كل السنوات"] + years)
 
-    # تطبيق الفلاتر
+    # تطبيق الفلاتر على البيانات
     df_filtered = df.copy()
     if client_search:
-        client_col = next((c for c in cols if 'عميل' in str(c) or 'customer' in str(c).lower()), cols[2] if len(cols)>2 else cols[0])
         df_filtered = df_filtered[df_filtered[client_col].astype(str).str.contains(client_search, case=False, na=False)]
-    
     if rep_search:
-        rep_col = next((c for c in cols if 'مندوب' in str(c) or 'rep' in str(c).lower()), cols[1] if len(cols)>1 else cols[0])
         df_filtered = df_filtered[df_filtered[rep_col].astype(str).str.contains(rep_search, case=False, na=False)]
-        
     if team_search:
-        team_col = next((c for c in cols if 'فريق' in str(c) or 'team' in str(c).lower()), cols[0])
         df_filtered = df_filtered[df_filtered[team_col].astype(str).str.contains(team_search, case=False, na=False)]
-        
     if selected_year != "كل السنوات" and date_col:
         df_filtered = df_filtered[df_filtered[date_col].dt.year == int(selected_year)]
 
     st.markdown(f"**عدد السجلات المعروضة بعد التصفية:** {len(df_filtered):,}")
 
-    # ضبط تكوين الأعمدة وتوسيع المساحات للأرقام والتواريخ وتصغير النصوص الطويلة لتجنب التداخل
+    # لوحة المؤشرات السريعة (KPIs)
+    st.markdown("---")
+    st.subheader("📊 لوحة المؤشرات الرئيسية:")
+    
+    # البحث عن أعمدة القيم المالية المتاحة
+    val_cols = [c for c in cols if any(w in str(c).lower() for w in ['مبلغ', 'قيمة', 'إجمالي', 'سعر', 'صافي'])]
+    kpi1, kpi2, kpi3 = st.columns(3)
+    
+    with kpi1:
+        st.metric(label="إجمالي السجلات المفلترة", value=f"{len(df_filtered):,}")
+    with kpi2:
+        if val_cols:
+            total_val = df_filtered[val_cols[0]].sum()
+            st.metric(label=f"إجمالي ({val_cols[0]})", value=f"{total_val:,.2f}")
+        else:
+            st.metric(label="إجمالي القيم", value="غير متوفر")
+    with kpi3:
+        unique_clients = df_filtered[client_col].nunique() if client_col in df_filtered.columns else 0
+        st.metric(label="عدد العملاء النشطين", value=f"{unique_clients:,}")
+
+    # ضبط تكوين الأعمدة لمنع التداخل وتصغير النصوص الطويلة
     column_config = {}
     for col in cols:
         col_lower = str(col).lower()
@@ -121,12 +135,22 @@ if not df.empty:
         elif any(w in col_lower for w in ['مبلغ', 'قيمة', 'إجمالي', 'سعر', 'كمية', 'خصم']):
             column_config[col] = st.column_config.NumberColumn(col, format="%.2f", width="small")
 
-    # عرض الجدول مع التنسيق المحسّن
+    # عرض جدول البيانات المفصل
+    st.markdown("---")
+    st.subheader("📋 جدول البيانات التفصيلي:")
     st.dataframe(
         df_filtered,
         use_container_width=True,
         column_config=column_config,
         height=500
     )
+    
+    # قسم الرسوم البيانية البسيطة
+    if val_cols and team_col in df_filtered.columns:
+        st.markdown("---")
+        st.subheader("📈 التحليل البياني حسب الفريق:")
+        team_summary = df_filtered.groupby(team_col)[val_cols[0]].sum().reset_index()
+        st.bar_chart(team_summary.set_index(team_col))
+
 else:
     st.info("الرجاء رفع ملف البيانات أو التأكد من توفرها لبدء العرض.")
