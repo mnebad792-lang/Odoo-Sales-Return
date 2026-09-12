@@ -153,7 +153,7 @@
         .btn-excel { background-color: var(--success-color); }
         .btn-pdf { background-color: #0284c7; }
         .btn-print { background-color: #4f46e5; }
-        .btn-compare { background-color: var(--d97706); font-size: 11px; padding: 7px 12px; background: #d97706; }
+        .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
 
         .table-container {
             width: 100%;
@@ -167,7 +167,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto; /* احتواء الخلايا والبيانات بالعرض */
+            table-layout: auto;
         }
 
         th, td {
@@ -360,10 +360,10 @@
         let tableHeaders = [];
         let db;
         let masterYears = new Set();
-        let detectedIndices = { teamIdx: -1, repIdx: -1, dateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
+        let detectedIndices = { teamIdx: -1, repIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
         function initDB() {
-            let request = indexedDB.open("SalesSystemDB_V15", 1);
+            let request = indexedDB.open("SalesSystemDB_V16", 1);
             request.onsuccess = function(event) {
                 db = event.target.result;
                 loadStoredData();
@@ -404,13 +404,20 @@
                 let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
                 if (hStr.includes('فريق') || hStr.includes('team')) detectedIndices.teamIdx = idx;
                 if (hStr.includes('مندوب') || hStr.includes('rep')) detectedIndices.repIdx = idx;
-                if (hStr.includes('تاريخ') || hStr.includes('date')) detectedIndices.dateIdx = idx;
+                if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('طلب')) detectedIndices.dateIdx = idx;
+                if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('فاتورة')) detectedIndices.invoiceDateIdx = idx;
                 if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي')) detectedIndices.valIdx = idx;
                 if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) detectedIndices.invoiceColIndex = idx;
             });
             if (detectedIndices.teamIdx === -1) detectedIndices.teamIdx = 0;
             if (detectedIndices.repIdx === -1) detectedIndices.repIdx = 1;
             if (detectedIndices.dateIdx === -1) detectedIndices.dateIdx = 2;
+            if (detectedIndices.invoiceDateIdx === -1) {
+                tableHeaders.forEach((h, idx) => {
+                    let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
+                    if (hStr.includes('تاريخفاتورة') || (hStr.includes('تاريخ') && hStr.includes('فاتورة'))) detectedIndices.invoiceDateIdx = idx;
+                });
+            }
             if (detectedIndices.valIdx === -1) detectedIndices.valIdx = 3;
         }
 
@@ -422,8 +429,8 @@
                 return new Date(utcDays * 86400 * 1000);
             }
             let strVal = String(val).trim();
-            // إزالة أي زوائد مثل (Arabian Standard Time)
-            strVal = strVal.replace(/\(.*\)/g, '').trim();
+            // تنظيف الحروف الزائدة والمنطقة الزمنية بالكامل
+            strVal = strVal.replace(/\(.*\)/g, '').replace(/[\+\-]\d{2,4}/g, '').trim();
             let parts = strVal.split(/[\/\-\.]/);
             if (parts.length === 3) {
                 if (parts[0].length === 4) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -436,7 +443,11 @@
 
         function formatDateClean(val) {
             let d = parseRowDate(val);
-            if (!d) return val !== undefined ? val : '';
+            if (!d) {
+                // إذا فشل التحليل كـ تاريخ، نقوم بحذف الجزء الزمني النصي إن وجد لعرض نص نظيف
+                let s = String(val !== undefined ? val : '');
+                return s.replace(/\(.*\)/g, '').trim();
+            }
             let yy = d.getFullYear();
             let mm = String(d.getMonth() + 1).padStart(2, '0');
             let dd = String(d.getDate()).padStart(2, '0');
@@ -508,6 +519,7 @@
             tbody.innerHTML = '';
 
             let dateIdx = detectedIndices.dateIdx;
+            let invoiceDateIdx = detectedIndices.invoiceDateIdx;
 
             function appendChunk() {
                 let chunk = rowsToRender.slice(index, index + chunkSize);
@@ -516,7 +528,7 @@
                     bodyHtml += '<tr>';
                     row.forEach((cell, cellIdx) => {
                         let displayVal = cell;
-                        if (cellIdx === dateIdx) {
+                        if (cellIdx === dateIdx || cellIdx === invoiceDateIdx || String(tableHeaders[cellIdx] || "").toLowerCase().includes('تاريخ')) {
                             displayVal = formatDateClean(cell);
                         }
                         bodyHtml += `<td title="${displayVal !== undefined ? displayVal : ''}">${displayVal !== undefined ? displayVal : ''}</td>`;
