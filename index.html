@@ -174,7 +174,7 @@
     </div>
 
     <script>
-        // إعدادات الاتصال بـ Supabase مع اسم جدولك الصحيح
+        // إعدادات الاتصال بـ Supabase مع اسم جدولك الصحيح Odoo-Sales-Return
         const SUPABASE_URL = 'https://gpzosgixzwqdxghquilb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdwem9zZ2l4endxZHhnaHF1aWxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODIxNTEsImV4cCI6MjEwNDk1ODE1MX0.7uON2Wz0cH1jsmlOy3s7d1qf3Hj9E7tVn2OWwUEwz4o';
         
@@ -185,17 +185,17 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // جلب البيانات تلقائياً من جدول doo_sales_return عند فتح الصفحة
+        // جلب البيانات تلقائياً من جدول Odoo-Sales-Return عند فتح الصفحة
         async function loadDataFromSupabase() {
             document.getElementById('statusText').innerText = `🔄 جاري مزامنة البيانات من السحابة...`;
             
             let { data, error } = await supabaseClient
-                .from('doo_sales_return') 
+                .from('Odoo-Sales-Return') 
                 .select('*');
 
             if (error) {
                 console.error('خطأ في الاتصال:', error);
-                document.getElementById('statusText').innerText = `❌ خطأ في الاتصال بقاعدة البيانات. تأكد من اسم الجدول وصلاحياته.`;
+                document.getElementById('statusText').innerText = `❌ خطأ في الاتصال بقاعدة البيانات. تأكد من تفعيل صلاحيات RLS للجدول.`;
                 return;
             }
 
@@ -208,7 +208,7 @@
                 extractYears();
                 renderTableRows(globalAllData);
             } else {
-                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول doo_sales_return حالياً.`;
+                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول Odoo-Sales-Return حالياً.`;
             }
         }
 
