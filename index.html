@@ -6,6 +6,8 @@
     <title>نظام تحليل ومقارنة المبيعات والتقارير المتقدمة</title>
     <!-- مكتبة Supabase للاتصال السحابي -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- مكتبة SheetJS لقراءة ملفات Excel و CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -87,12 +89,15 @@
     <div class="container">
         <h2>نظام تحليل ومقارنة المبيعات والتقارير المتقدمة</h2>
 
+        <!-- شريط الحالة والتحكم بالبيانات والرفع -->
         <div class="upload-section">
             <div>
                 <span id="statusText">🔄 جاري الاتصال بقاعدة البيانات السحابية وجلب أحدث البيانات...</span>
             </div>
-            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <button class="action-btn" onclick="loadDataFromSupabase()" style="background-color: #0284c7;">🔄 تحديث البيانات يدويًا</button>
+            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                <input type="file" id="excelFile" accept=".csv, .xlsx, .xls" style="font-size: 10px; padding: 3px;" />
+                <button class="action-btn" onclick="uploadExcelData()" style="background-color: var(--success-color);">📤 رفع ملف لـ Supabase</button>
+                <button class="action-btn" onclick="loadDataFromSupabase()" style="background-color: #0284c7;">🔄 تحديث البيانات</button>
             </div>
         </div>
 
@@ -208,8 +213,60 @@
                 extractYears();
                 renderTableRows(globalAllData);
             } else {
-                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول odoo_sales_return حالياً.`;
+                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول odoo_sales_return حالياً. استخدم زر الرفع لإضافة بيانات.`;
             }
+        }
+
+        // دالة رفع ملفات Excel أو CSV وإدراجها في Supabase
+        async function uploadExcelData() {
+            const fileInput = document.getElementById('excelFile');
+            const statusText = document.getElementById('statusText');
+            
+            if (fileInput.files.length === 0) {
+                alert('الرجاء اختيار ملف Excel أو CSV أولاً!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function(e) {
+                try {
+                    statusText.innerText = '🔄 جاري قراءة الملف وتحويل البيانات...';
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        alert('الملف فارغ أو لا يحتوي على بيانات صحيحة.');
+                        return;
+                    }
+
+                    statusText.innerText = `⏳ جاري رفع ${jsonData.length} سجل إلى جدول odoo_sales_return...`;
+
+                    // إدخال البيانات المرفوعة إلى Supabase
+                    const { error } = await supabaseClient
+                        .from('odoo_sales_return')
+                        .insert(jsonData);
+
+                    if (error) throw error;
+
+                    statusText.innerText = `✅ تم رفع وتحديث البيانات بنجاح في قاعدة البيانات!`;
+                    fileInput.value = ''; // إعادة تعيين حقل الملف
+                    
+                    // إعادة تحميل الجدول تلقائياً لعرض البيانات الجديدة
+                    loadDataFromSupabase();
+
+                } catch (err) {
+                    console.error(err);
+                    statusText.innerText = '❌ حدث خطأ أثناء الرفع: ' + (err.message || err);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
         }
 
         window.onload = function() {
@@ -289,7 +346,7 @@
             if (tableHeaders.length === 0) return;
             
             let colGroupHtml = '';
-            tableHeaders.forEach((h, idx) => {
+            tableHeaders.forEach((h) => {
                 let hStr = String(h || "").toLowerCase();
                 let widthPct = 5.2;
                 if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthPct = 22;
