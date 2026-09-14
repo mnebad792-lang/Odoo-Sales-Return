@@ -33,23 +33,23 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* احتوائي لشاشة العرض بالكامل (Shrink to Fit) بدون تمرير أفقي */
+        /* إجبار الجدول واحتوائه بالكامل داخل الشاشة بدون تمرير أفقي نهائياً */
         .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; direction: rtl; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
         
         th, td { 
-            padding: 5px 4px; 
+            padding: 5px 3px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 9px !important; /* حجم خط متناسق ومضبوط لاحتواء كافة الأعمدة */
+            font-size: 8.5px !important; /* حجم ملائم لتوزيع كافة الأعمدة بالتساوي */
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap; 
         }
 
-        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 9.5px !important; }
+        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 9px !important; }
         tr:hover { background-color: #f8fafc; }
         .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
@@ -319,9 +319,12 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
+            let colCount = tableHeaders.length;
+            let colWidthPercent = (100 / colCount).toFixed(2);
+            
             let headerHtml = '<tr>';
             tableHeaders.forEach((h) => {
-                headerHtml += `<th>${h}</th>`;
+                headerHtml += `<th style="width: ${colWidthPercent}%;">${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -337,7 +340,7 @@
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td style="width: ${colWidthPercent}%;" title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
