@@ -33,23 +33,21 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* إزالة السكرول الأفقي وضبط الجدول ليتسع للشاشة بالكامل */
-        .table-container { width: 100%; overflow-x: hidden; max-height: 520px; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        /* تفعيل شريط التمرير الأفقي بمرونة تامة لعرض كافة الأعمدة مهما بلغ عددها */
+        .table-container { width: 100%; overflow-x: auto; max-height: 520px; border: 1px solid var(--border-color); border-radius: 4px; background: white; direction: ltr; }
+        table { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; direction: rtl; }
         
         th, td { 
-            padding: 3px 4px; 
+            padding: 4px 8px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 6pt !important; /* تقليص حجم الخط ليناسب كل الأعمدة */
+            font-size: 7pt !important; 
             white-space: nowrap !important; 
-            overflow: hidden;
-            text-overflow: ellipsis; /* قص النصوص الطويلة بوضع نقط ثلاثية للحفاظ على النظام */
         }
 
-        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 6.5pt !important; }
+        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 7.5pt !important; }
         tr:hover { background-color: #f8fafc; }
         .row-count { margin-top: 3px; font-weight: bold; color: #475569; font-size: 9.5px; }
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
@@ -319,12 +317,9 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            // حساب نسبة العرض المتساوية لكل الأعمدة لتتطابق مع الشاشة تماماً
-            let colWidthPercent = (100 / tableHeaders.length).toFixed(2);
-            
             let headerHtml = '<tr>';
-            tableHeaders.forEach((h, idx) => {
-                headerHtml += `<th style="width: ${colWidthPercent}%;">${h}</th>`;
+            tableHeaders.forEach((h) => {
+                headerHtml += `<th>${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -340,7 +335,7 @@
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td style="width: ${colWidthPercent}%;" title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
