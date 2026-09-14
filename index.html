@@ -102,7 +102,6 @@
         </div>
     </div>
     <script>
-        // تم تحديث الرابط الجديد هنا
         const GOOGLE_SHEET_CSV_URL = "https://script.google.com/macros/s/AKfycbyA3vu5HKMjq1-LdJYrQSULy7KpeWvpl3cNxctB9wgAvoRpulp0KHdgkOJgKQYy97UHKw/exec";
 
         let globalAllData = [];
@@ -114,25 +113,34 @@
 
         function loadGoogleSheetData() {
             document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات مباشرة من الشيت...";
-            Papa.parse(GOOGLE_SHEET_CSV_URL, {
-                download: true,
-                header: false,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    let rows = results.data;
-                    if (rows.length === 0) { alert('الملف فارغ.'); return; }
-                    tableHeaders = rows[0];
-                    globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
-                    document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
-                    detectColumnsAutomatically();
-                    extractYears();
-                    renderTableRows(globalAllData);
-                },
-                error: function(err) {
+            
+            // استخدام Fetch الآمن لتجاوز مشاكل التوجيه
+            fetch(GOOGLE_SHEET_CSV_URL, { redirect: 'follow' })
+                .then(response => response.text())
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: false,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            let rows = results.data;
+                            if (rows.length === 0) { alert('الملف فارغ.'); return; }
+                            tableHeaders = rows[0];
+                            globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
+                            document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
+                            detectColumnsAutomatically();
+                            extractYears();
+                            renderTableRows(globalAllData);
+                        },
+                        error: function(err) {
+                            console.error(err);
+                            document.getElementById('statusText').innerText = "❌ حدث خطأ في تحليل بيانات CSV.";
+                        }
+                    });
+                })
+                .catch(err => {
                     console.error(err);
-                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت على الويب بصلاحية Anyone.";
-                }
-            });
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت بصلاحية Anyone وإعادة النشر New Deployment.";
+                });
         }
 
         function detectColumnsAutomatically() {
