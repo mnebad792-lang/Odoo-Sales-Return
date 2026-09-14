@@ -7,10 +7,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
-            --primary-color: #2563eb;
+            --primary-color: #1e3a8a;
+            --secondary-color: #0284c7;
             --success-color: #16a34a;
             --danger-color: #dc2626;
-            --dark-color: #1e293b;
+            --dark-color: #0f172a;
             --bg-color: #f8fafc;
             --border-color: #cbd5e1;
         }
@@ -29,7 +30,7 @@
         .actions-bar { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
         button.action-btn, label.action-btn { padding: 4px 8px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 9.5px; display: inline-flex; align-items: center; gap: 3px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
-        .btn-compare { background-color: #d97706; font-size: 9.5px; padding: 4px 8px; }
+        .btn-compare { background-color: #b45309; font-size: 9.5px; padding: 4px 8px; }
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
@@ -47,7 +48,7 @@
         }
 
         th { 
-            background-color: var(--dark-color); 
+            background-color: var(--primary-color); 
             color: white; 
             font-weight: bold !important; 
             position: sticky; 
@@ -60,8 +61,16 @@
             text-align: center;
         }
 
-        tr:hover { background-color: #f8fafc; }
+        tr:hover { background-color: #f1f5f9; }
         .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
+        
+        /* تصميم الصفوف التجميعية للمندوب والإجمالي */
+        .rep-group-header { background-color: #e0f2fe !important; font-weight: bold; color: #0369a1; }
+        .rep-subtotal-row { background-color: #dbeafe !important; font-weight: bold; border-top: 2px solid #3b82f6; color: #1e3a8a; }
+        .month-detail-row { background-color: #ffffff; color: #334155; }
+        .growth-pos { color: #16a34a; font-weight: bold; }
+        .growth-neg { color: #dc2626; font-weight: bold; }
+
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
     </style>
 </head>
@@ -83,8 +92,8 @@
         </div>
 
         <div class="reports-buttons-grid">
-            <button class="action-btn btn-compare" onclick="openReportModal('reps')">⚖️ تقرير المناديب والفرق</button>
-            <button class="action-btn btn-compare" style="background-color: #0369a1;" onclick="openReportModal('months')">📅 تقرير الشهور</button>
+            <button class="action-btn btn-compare" onclick="openReportModal('reps')">⚖️ تقرير المناديب والفرق والشهور والنمو</button>
+            <button class="action-btn btn-compare" style="background-color: #0369a1;" onclick="openReportModal('months')">📅 تقرير الشهور العامة</button>
             <button class="action-btn btn-compare" style="background-color: #7c3aed;" onclick="openReportModal('clients')">🏢 تقرير العملاء</button>
         </div>
 
@@ -147,7 +156,7 @@
     <!-- نافذة التقارير التحليلية المتقدمة -->
     <div id="reportModalContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <h2 id="modalTitle" style="margin: 0; color: #2563eb; font-size: 13px;">⚖️ التقرير التحليلي</h2>
+            <h2 id="modalTitle" style="margin: 0; color: #1e3a8a; font-size: 13px;">⚖️ التقرير التحليلي</h2>
             <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
         </div>
         <div class="table-container" style="max-height: 75vh;">
@@ -329,27 +338,17 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            // حساب العرض بالبكسل بناءً على أطوال محتوى كل عمود (العينة المحدودة أو أطول النصوص)
             let colWidths = tableHeaders.map((h, colIdx) => {
                 let maxLen = String(h).length;
-                // فحص عينة من أول 200 صف لمعرفة أطول نص في العمود
                 let sampleLimit = Math.min(rowsToRender.length, 200);
                 for (let i = 0; i < sampleLimit; i++) {
                     let cellVal = String(rowsToRender[i][colIdx] || "");
-                    if (cellVal.length > maxLen) {
-                        maxLen = cellVal.length;
-                    }
+                    if (cellVal.length > maxLen) maxLen = cellVal.length;
                 }
-                
                 let hL = String(h).toLowerCase();
-                // تخصيص الحد الأدنى والحد الأقصى للعرض حسب نوع العمود
-                if (hL.includes('المنتج') || hL.includes('العميل')) {
-                    return Math.min(Math.max(maxLen * 8, 220), 400); // أعمدة نصوص عريضة
-                } else if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('قائمة')) {
-                    return Math.min(Math.max(maxLen * 8, 130), 200); // أعمدة متوسطة
-                } else {
-                    return Math.min(Math.max(maxLen * 9, 85), 140);  // أعمدة الأرقام والتواريخ والأكواد الضيقة
-                }
+                if (hL.includes('المنتج') || hL.includes('العميل')) return Math.min(Math.max(maxLen * 8, 220), 400);
+                else if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('قائمة')) return Math.min(Math.max(maxLen * 8, 130), 200);
+                else return Math.min(Math.max(maxLen * 9, 85), 140);
             });
 
             let headerHtml = '<tr>';
@@ -393,7 +392,7 @@
             let filtered = globalAllData.filter(row => {
                 if (clientQ && detectedIndices.clientIdx !== -1 && !String(row[detectedIndices.clientIdx] || "").toLowerCase().includes(clientQ)) return false;
                 if (productQ && detectedIndices.productIdx !== -1 && !String(row[detectedIndices.productIdx] || "").toLowerCase().includes(productQ)) return false;
-                if (repQ && detectedIndices.repIdx !== -1 && !String(row[detectedIndices.repIdx] || "").toLowerCase().includes(repQ)) return false;
+                if (repQ && detectedIndices.repIdx !== -1 && !String(row[repIdx] || "").toLowerCase().includes(repQ)) return false;
                 if (teamQ && detectedIndices.teamIdx !== -1 && !String(row[detectedIndices.teamIdx] || "").toLowerCase().includes(teamQ)) return false;
                 if (detectedIndices.dateIdx !== -1) {
                     let d = parseRowDate(row[detectedIndices.dateIdx]);
@@ -420,73 +419,158 @@
         function generateReport(type) {
             let { teamIdx, repIdx, clientIdx, dateIdx, valIdx, invoiceColIndex } = detectedIndices;
             let groupData = {}, yearsSet = new Set();
-            let grandSales = 0, grandReturns = 0;
 
             globalAllData.forEach(row => {
-                let key1 = "", key2 = "";
-                if (type === 'reps') {
-                    key1 = String(row[repIdx] || "مندوب غير محدد").trim();
-                    key2 = String(row[teamIdx] || "فريق غير محدد").trim();
-                } else if (type === 'months') {
-                    let dObj = parseRowDate(row[dateIdx]);
-                    key1 = dObj ? `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}` : "غير محدد";
-                    key2 = "الشهور";
-                } else if (type === 'clients') {
-                    key1 = String(row[clientIdx] || "عميل غير محدد").trim();
-                    key2 = "العملاء";
-                }
-
+                let repName = String(row[repIdx] || "مندوب غير محدد").trim();
+                let teamName = String(row[teamIdx] || "فريق غير محدد").trim();
+                
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "غير محدد";
+                let monthNum = dObj ? (dObj.getMonth() + 1) : 0;
                 let amount = Number(row[valIdx]) || 0;
                 let isReturn = (invoiceColIndex !== -1 && String(row[invoiceColIndex]).trim().toLowerCase().startsWith('rinv'));
 
                 if (year !== "غير محدد") yearsSet.add(year);
-                if (!groupData[key1]) groupData[key1] = { team: key2, years: {} };
-                if (!groupData[key1].years[year]) groupData[key1].years[year] = { sales: 0, returns: 0 };
 
-                if (isReturn) {
-                    groupData[key1].years[year].returns += Math.abs(amount);
-                    grandReturns += Math.abs(amount);
-                } else {
-                    groupData[key1].years[year].sales += amount;
-                    grandSales += amount;
+                if (type === 'reps') {
+                    // الترتيب المطلوب: المندوب -> الفريق -> الشهر
+                    if (!groupData[repName]) groupData[repName] = { team: teamName, months: {} };
+                    if (!groupData[repName].months[monthNum]) groupData[repName].months[monthNum] = { years: {} };
+                    if (!groupData[repName].months[monthNum].years[year]) groupData[repName].months[monthNum].years[year] = { sales: 0, returns: 0 };
+
+                    if (isReturn) {
+                        groupData[repName].months[monthNum].years[year].returns += Math.abs(amount);
+                    } else {
+                        groupData[repName].months[monthNum].years[year].sales += amount;
+                    }
+                } else if (type === 'months') {
+                    let key1 = dObj ? `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}` : "غير محدد";
+                    if (!groupData[key1]) groupData[key1] = { team: "الشهور العامة", years: {} };
+                    if (!groupData[key1].years[year]) groupData[key1].years[year] = { sales: 0, returns: 0 };
+                    if (isReturn) groupData[key1].years[year].returns += Math.abs(amount);
+                    else groupData[key1].years[year].sales += amount;
+                } else if (type === 'clients') {
+                    let key1 = String(row[clientIdx] || "عميل غير محدد").trim();
+                    if (!groupData[key1]) groupData[key1] = { team: "العملاء", years: {} };
+                    if (!groupData[key1].years[year]) groupData[key1].years[year] = { sales: 0, returns: 0 };
+                    if (isReturn) groupData[key1].years[year].returns += Math.abs(amount);
+                    else groupData[key1].years[year].sales += amount;
                 }
             });
 
             let sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
             if (sortedYears.length === 0) sortedYears = [2025, 2026];
+            let baseYear = sortedYears[0];
+            let compareYear = sortedYears[sortedYears.length > 1 ? sortedYears.length - 1 : 0];
 
-            let titleName = type === 'reps' ? "تقرير المناديب والفرق" : (type === 'months' ? "تقرير الشهور" : "تقرير العملاء");
-            let colName1 = type === 'reps' ? "مندوب المبيعات" : (type === 'months' ? "الشهر" : "العميل");
-            let colName2 = type === 'reps' ? "فريق المبيعات" : "التصنيف";
+            if (type === 'reps') {
+                let topHeaderHtml = `<tr>
+                    <th rowspan="2">مندوب المبيعات</th>
+                    <th rowspan="2">فريق المبيعات</th>
+                    <th rowspan="2">الشهر</th>`;
+                sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
+                if (sortedYears.length >= 2) {
+                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">نسبة النمو (%)</th><th rowspan="2" style="background:#1e3a8a;">المؤشر</th>`;
+                }
+                topHeaderHtml += `</tr>`;
 
-            let topHeaderHtml = `<tr><th rowspan="2">${colName1}</th><th rowspan="2">${colName2}</th>`;
-            sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
-            topHeaderHtml += `<th colspan="3" style="background:#d97706;">إجمالي البند</th></tr>`;
+                let subHeaderHtml = `<tr>`;
+                sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
+                subHeaderHtml += `</tr>`;
 
-            let subHeaderHtml = `<tr>`;
-            sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
-            subHeaderHtml += `<th>إجمالي مبيعات</th><th>إجمالي مرتجعات</th><th>إجمالي صافي</th></tr>`;
+                let tableRowsHtml = '';
+                Object.keys(groupData).sort().forEach(rep => {
+                    let repObj = groupData[rep];
+                    let repTotalsByYear = {};
+                    sortedYears.forEach(y => repTotalsByYear[y] = { sales: 0, returns: 0 });
 
-            let tableRowsHtml = '';
-            Object.keys(groupData).sort().forEach(k1 => {
-                let item = groupData[k1];
-                let itemTotalSales = 0, itemTotalReturns = 0;
+                    // عرض الشهور للمندوب
+                    let monthsKeys = Object.keys(repObj.months).sort((a,b) => Number(a)-Number(b));
+                    monthsKeys.forEach(mNum => {
+                        let mData = repObj.months[mNum];
+                        let monthName = mNum == 0 ? "غير محدد" : new Date(2026, mNum - 1, 1).toLocaleString('ar', { month: 'long' });
+                        
+                        tableRowsHtml += `<tr class="month-detail-row">
+                            <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${rep}</td>
+                            <td>${repObj.team}</td>
+                            <td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
+                        
+                        let baseNet = 0, compNet = 0;
+                        sortedYears.forEach(y => {
+                            let yData = mData.years[y] || { sales: 0, returns: 0 };
+                            let netY = yData.sales - yData.returns;
+                            tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
+                            
+                            repTotalsByYear[y].sales += yData.sales;
+                            repTotalsByYear[y].returns += yData.returns;
+                            
+                            if(y === baseYear) baseNet = netY;
+                            if(y === compareYear) compNet = netY;
+                        });
 
-                tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${k1}</td><td>${item.team}</td>`;
-                sortedYears.forEach(y => {
-                    let yData = item.years[y] || { sales: 0, returns: 0 };
-                    let netY = yData.sales - yData.returns;
-                    tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                    itemTotalSales += yData.sales;
-                    itemTotalReturns += yData.returns;
+                        if (sortedYears.length >= 2) {
+                            let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
+                            let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
+                            let indicator = growth >= 10 ? "🚀 ممتاز" : (growth > 0 ? "📈 نمو جيد" : (growth === 0 ? "➖ مستقر" : "🔻 تراجع"));
+                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td>${indicator}</td>`;
+                        }
+                        tableRowsHtml += `</tr>`;
+                    });
+
+                    // صف إجمالي المندوب أسفله مباشرة
+                    let repBaseNet = repTotalsByYear[baseYear] ? (repTotalsByYear[baseYear].sales - repTotalsByYear[baseYear].returns) : 0;
+                    let repCompNet = repTotalsByYear[compareYear] ? (repTotalsByYear[compareYear].sales - repTotalsByYear[compareYear].returns) : 0;
+                    let repGrowth = repBaseNet !== 0 ? ((repCompNet - repBaseNet) / Math.abs(repBaseNet)) * 100 : (repCompNet > 0 ? 100 : 0);
+                    let repGrowthClass = repGrowth >= 0 ? "growth-pos" : "growth-neg";
+                    let repIndicator = repGrowth >= 10 ? "🚀 ممتاز" : (repGrowth > 0 ? "📈 نمو جيد" : (repGrowth === 0 ? "➖ مستقر" : "🔻 تراجع"));
+
+                    tableRowsHtml += `<tr class="rep-subtotal-row">
+                        <td style="text-align:right;">إجمالي المندوب: ${rep}</td>
+                        <td>${repObj.team}</td>
+                        <td>الإجمالي العام</td>`;
+                    
+                    sortedYears.forEach(y => {
+                        let tData = repTotalsByYear[y];
+                        let tNet = tData.sales - tData.returns;
+                        tableRowsHtml += `<td>${tData.sales.toLocaleString()}</td><td style="color:red;">${tData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${tNet.toLocaleString()}</td>`;
+                    });
+
+                    if (sortedYears.length >= 2) {
+                        tableRowsHtml += `<td class="${repGrowthClass}">${repGrowth.toFixed(1)}%</td><td>${repIndicator}</td>`;
+                    }
+                    tableRowsHtml += `</tr>`;
                 });
-                let itemNetTotal = itemTotalSales - itemTotalReturns;
-                tableRowsHtml += `<td style="font-weight:bold;">${itemTotalSales.toLocaleString()}</td><td style="color:red; font-weight:bold;">${itemTotalReturns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${itemNetTotal.toLocaleString()}</td></tr>`;
-            });
 
-            return { title: titleName, topHeaderHtml, subHeaderHtml, tableRowsHtml };
+                return { title: "تقرير المناديب والفرق والشهور ونسب النمو", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+            } else {
+                // التقارير الأخرى (الشهور / العملاء)
+                let titleName = type === 'months' ? "تقرير الشهور العامة" : "تقرير العملاء";
+                let colName1 = type === 'months' ? "الشهر" : "العميل";
+                let topHeaderHtml = `<tr><th rowspan="2">${colName1}</th><th rowspan="2">التصنيف</th>`;
+                sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
+                topHeaderHtml += `<th colspan="3" style="background:#b45309;">الإجمالي الكلي</th></tr>`;
+
+                let subHeaderHtml = `<tr>`;
+                sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
+                subHeaderHtml += `<th>إجمالي مبيعات</th><th>إجمالي مرتجعات</th><th>إجمالي صافي</th></tr>`;
+
+                let tableRowsHtml = '';
+                Object.keys(groupData).sort().forEach(k1 => {
+                    let item = groupData[k1];
+                    let itemTotalSales = 0, itemTotalReturns = 0;
+                    tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${k1}</td><td>${item.team}</td>`;
+                    sortedYears.forEach(y => {
+                        let yData = item.years[y] || { sales: 0, returns: 0 };
+                        let netY = yData.sales - yData.returns;
+                        tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
+                        itemTotalSales += yData.sales;
+                        itemTotalReturns += yData.returns;
+                    });
+                    let itemNetTotal = itemTotalSales - itemTotalReturns;
+                    tableRowsHtml += `<td style="font-weight:bold;">${itemTotalSales.toLocaleString()}</td><td style="color:red; font-weight:bold;">${itemTotalReturns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${itemNetTotal.toLocaleString()}</td></tr>`;
+                });
+                return { title: titleName, topHeaderHtml, subHeaderHtml, tableRowsHtml };
+            }
         }
 
         function openReportModal(type) {
