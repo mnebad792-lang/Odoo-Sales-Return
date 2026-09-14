@@ -50,7 +50,7 @@
     <div class="container">
         <h2>نظام تحليل ومقارنة المبيعات والتقارير (متصل سحابياً بالتحديث المركزي)</h2>
         <div class="upload-section">
-            <div><span id="statusText">🔄 جاري سحب البيانات المحدثة عبر الخادم الوسيط...</span></div>
+            <div><span id="statusText">🔄 جاري سحب البيانات المحدثة مباشرة...</span></div>
             <div><button class="action-btn btn-excel" onclick="loadGoogleSheetData()">🔄 تحديث البيانات الآن</button></div>
         </div>
         <div class="reports-buttons-grid">
@@ -102,9 +102,8 @@
         </div>
     </div>
     <script>
-        // استخدام خدمة كوسيط (Proxy) لتجاوز مشكلة الحظر الأمني CORS نهائياً
-        const RAW_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipnMnrq-qJEEvDHTyGyswWexDxWFYeOfCaHB3cRcQ/pub?gid=1841364794&single=true&output=csv";
-        const GOOGLE_SHEET_CSV_URL = "https://api.allorigins.win/raw?url=" + encodeURIComponent(RAW_CSV_URL);
+        // تم تحديث الرابط هنا بنجاح
+        const GOOGLE_SHEET_CSV_URL = "https://script.google.com/macros/s/AKfycbzvSAnBadLZJ6-iWUK-4rXSunBttyS3WfnG2Vf1NAwMn7kqMNYCDYYaKX_F5HvaIBWSIw/exec";
 
         let globalAllData = [];
         let tableHeaders = [];
@@ -114,7 +113,7 @@
         window.onload = function() { loadGoogleSheetData(); };
 
         function loadGoogleSheetData() {
-            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات من الشيت المركزي...";
+            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات مباشرة من الشيت...";
             Papa.parse(GOOGLE_SHEET_CSV_URL, {
                 download: true,
                 header: false,
@@ -131,7 +130,7 @@
                 },
                 error: function(err) {
                     console.error(err);
-                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت على الويب.";
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من صحة رابط الـ Web App.";
                 }
             });
         }
