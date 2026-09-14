@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام تحليل ومقارنة المبيعات - التحديث المركزي</title>
-    <!-- مكتبة Papaparse لقراءة Google Sheets بشكل سريع جداً -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
-            --secondary-color: #0284c7;
             --success-color: #16a34a;
-            --danger-color: #dc2626;
             --dark-color: #0f172a;
             --bg-color: #f8fafc;
             --border-color: #cbd5e1;
@@ -32,86 +29,44 @@
         button.action-btn { padding: 5px 10px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
         .btn-compare { background-color: #b45309; font-size: 10px; padding: 5px 10px; }
-        
         .reports-buttons-grid { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
-        
         .table-container { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; box-sizing: border-box; }
-        
         table { width: 100%; max-width: 100%; table-layout: fixed; border-collapse: collapse; direction: ltr; }
-        
-        th, td { 
-            padding: 4px 2px; 
-            text-align: center; 
-            vertical-align: middle; 
-            border-bottom: 1px solid #e2e8f0; 
-            border-right: 1px solid #e2e8f0; 
-            box-sizing: border-box;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap !important; /* Shrink to Fit */
-        }
-
+        th, td { padding: 4px 2px; text-align: center; vertical-align: middle; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
         td { font-size: 9.5px !important; line-height: 1.1; }
         th { background-color: var(--primary-color); color: white; font-weight: bold !important; font-size: 9.5px !important; position: sticky; top: 0; z-index: 10; line-height: 1.1; text-align: center; }
-
         tr:hover { background-color: #f1f5f9; }
         .row-count { margin-top: 6px; font-weight: bold; color: #475569; font-size: 11px; }
-        
         .rep-subtotal-row { background-color: #dbeafe !important; font-weight: bold; border-top: 2px solid #3b82f6; color: #1e3a8a; }
         .month-detail-row { background-color: #ffffff; color: #334155; }
         .growth-pos { color: #16a34a; font-weight: bold; }
         .growth-neg { color: #dc2626; font-weight: bold; }
-
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; direction: ltr; text-align: left; }
         #reportModalContainer table { width: 100%; table-layout: auto; }
         #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 9.5px !important; padding: 4px 5px !important; }
     </style>
 </head>
 <body>
-
     <div class="container">
         <h2>نظام تحليل ومقارنة المبيعات والتقارير (متصل سحابياً بالتحديث المركزي)</h2>
-
         <div class="upload-section">
-            <div>
-                <span id="statusText">🔄 جاري سحب البيانات المحدثة تلقائياً من الشيت المركزي...</span>
-            </div>
-            <div>
-                <button class="action-btn btn-excel" onclick="loadGoogleSheetData()">🔄 تحديث البيانات الآن</button>
-            </div>
+            <div><span id="statusText">🔄 جاري سحب البيانات المحدثة عبر الخادم الوسيط...</span></div>
+            <div><button class="action-btn btn-excel" onclick="loadGoogleSheetData()">🔄 تحديث البيانات الآن</button></div>
         </div>
-
         <div class="reports-buttons-grid">
             <button class="action-btn btn-compare" onclick="openReportModal('reps')">⚖️ تقرير المناديب والفرق والشهور والنمو</button>
             <button class="action-btn btn-compare" style="background-color: #0369a1;" onclick="openReportModal('months')">📅 تقرير الشهور العامة</button>
             <button class="action-btn btn-compare" style="background-color: #7c3aed;" onclick="openReportModal('clients')">🏢 تقرير العملاء</button>
         </div>
-
         <div class="quick-search-panel">
             <div class="quick-search-title">🔍 محرك الفلاتر الشامل:</div>
             <div class="search-grid">
-                <div class="search-field-group">
-                    <label>العميل:</label>
-                    <input type="text" id="searchClient" placeholder="Search...">
-                </div>
-                <div class="search-field-group">
-                    <label>المنتج:</label>
-                    <input type="text" id="searchProduct" placeholder="Search...">
-                </div>
-                <div class="search-field-group">
-                    <label>مندوب المبيعات:</label>
-                    <input type="text" id="searchRep" placeholder="Search...">
-                </div>
-                <div class="search-field-group">
-                    <label>فريق المبيعات:</label>
-                    <input type="text" id="searchTeam" placeholder="Search...">
-                </div>
-                <div class="search-field-group">
-                    <label>السنة:</label>
-                    <select id="filterYear"><option value="">All Years</option></select>
-                </div>
-                <div class="search-field-group">
-                    <label>الشهر:</label>
+                <div class="search-field-group"><label>العميل:</label><input type="text" id="searchClient" placeholder="Search..."></div>
+                <div class="search-field-group"><label>المنتج:</label><input type="text" id="searchProduct" placeholder="Search..."></div>
+                <div class="search-field-group"><label>مندوب المبيعات:</label><input type="text" id="searchRep" placeholder="Search..."></div>
+                <div class="search-field-group"><label>فريق المبيعات:</label><input type="text" id="searchTeam" placeholder="Search..."></div>
+                <div class="search-field-group"><label>السنة:</label><select id="filterYear"><option value="">All Years</option></select></div>
+                <div class="search-field-group"><label>الشهر:</label>
                     <select id="filterMonth">
                         <option value="">All Months</option>
                         <option value="1">January</option><option value="2">February</option><option value="3">March</option>
@@ -120,20 +75,15 @@
                         <option value="10">October</option><option value="11">November</option><option value="12">December</option>
                     </select>
                 </div>
-                <div>
-                    <button class="btn-search-action" onclick="executeMainTableFiltering()">🔍 تطبيق الفلاتر</button>
-                </div>
+                <div><button class="btn-search-action" onclick="executeMainTableFiltering()">🔍 تطبيق الفلاتر</button></div>
             </div>
         </div>
-
         <div class="actions-bar">
             <button class="action-btn btn-reset" onclick="resetFilter()">🔄 إعادة ضبط</button>
             <button class="action-btn btn-pdf" onclick="exportToPDFFile()">📥 تصدير PDF</button>
             <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة</button>
         </div>
-
         <div class="row-count" id="rowCount">عدد السجلات الإجمالي: 0</div>
-
         <div class="table-container">
             <table id="mainTable">
                 <colgroup id="tableColGroup"></colgroup>
@@ -142,51 +92,38 @@
             </table>
         </div>
     </div>
-
-    <!-- نافذة التقارير -->
     <div id="reportModalContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <h2 id="modalTitle" style="margin: 0; color: #1e3a8a; font-size: 15px;">⚖️ التقرير التحليلي</h2>
             <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
         </div>
         <div class="table-container" style="max-height: 80vh;">
-            <table id="popupTable">
-                <thead id="popupHeader"></thead>
-                <tbody id="popupBody"></tbody>
-            </table>
+            <table id="popupTable"><thead id="popupHeader"></thead><tbody id="popupBody"></tbody></table>
         </div>
     </div>
-
     <script>
-        // تم ربط الرابط الخاص بك مباشرة هنا
-        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipnMnrq-qJEEvDHTyGyswWexDxWFYeOfCaHB3cRcQ/pub?gid=1841364794&single=true&output=csv";
+        // استخدام خدمة كوسيط (Proxy) لتجاوز مشكلة الحظر الأمني CORS نهائياً
+        const RAW_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipnMnrq-qJEEvDHTyGyswWexDxWFYeOfCaHB3cRcQ/pub?gid=1841364794&single=true&output=csv";
+        const GOOGLE_SHEET_CSV_URL = "https://api.allorigins.win/raw?url=" + encodeURIComponent(RAW_CSV_URL);
 
         let globalAllData = [];
         let tableHeaders = [];
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        window.onload = function() {
-            loadGoogleSheetData();
-        };
+        window.onload = function() { loadGoogleSheetData(); };
 
         function loadGoogleSheetData() {
-            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات من Google Sheets...";
-            
+            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات من الشيت المركزي...";
             Papa.parse(GOOGLE_SHEET_CSV_URL, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
                     let rows = results.data;
-                    if (rows.length === 0) {
-                        alert('الملف فارغ.');
-                        return;
-                    }
-
+                    if (rows.length === 0) { alert('الملف فارغ.'); return; }
                     tableHeaders = rows[0];
                     globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
-
                     document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
                     detectColumnsAutomatically();
                     extractYears();
@@ -194,7 +131,7 @@
                 },
                 error: function(err) {
                     console.error(err);
-                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال بالشيت. تأكد من إعدادات المشاركة.";
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت على الويب.";
                 }
             });
         }
@@ -223,8 +160,7 @@
             if (!val && val !== 0) return null;
             let strVal = String(val).trim();
             let parsed = new Date(strVal);
-            if (!isNaN(parsed)) return parsed;
-            return null;
+            return !isNaN(parsed) ? parsed : null;
         }
 
         function formatDateClean(val) {
@@ -265,7 +201,6 @@
 
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
-            
             let colGroupHtml = '';
             tableHeaders.forEach(() => { colGroupHtml += `<col>`; });
             document.getElementById('tableColGroup').innerHTML = colGroupHtml;
@@ -341,7 +276,6 @@
                 let repName = String(row[repIdx] || "Unassigned Rep").trim();
                 let teamName = String(row[teamIdx] || "Unassigned Team").trim();
                 let clientName = String(row[clientIdx] || "Unassigned Customer").trim();
-                
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "N/A";
                 let monthNum = dObj ? (dObj.getMonth() + 1) : 0;
@@ -424,7 +358,6 @@
                     tableRowsHtml += `</tr>`;
                 });
                 return { title: "Sales Reps & Teams Growth Report", topHeaderHtml, subHeaderHtml: "", tableRowsHtml };
-            
             } else if (type === 'months') {
                 let topHeaderHtml = `<tr><th rowspan="2">Month</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">Year ${y}</th>`; });
@@ -438,7 +371,6 @@
                     let mObj = groupData[k];
                     let monthName = mObj.monthNum == 0 ? "N/A" : new Date(2026, mObj.monthNum - 1, 1).toLocaleString('en', { month: 'long' });
                     let baseNet = 0, compNet = 0;
-
                     tableRowsHtml += `<tr class="month-detail-row"><td style="font-weight:bold; background:#f8fafc; color:#1e3a8a;">${monthName}</td>`;
                     sortedYears.forEach(y => {
                         let yData = mObj.years[y] || { sales: 0, returns: 0 };
@@ -454,7 +386,6 @@
                     tableRowsHtml += `</tr>`;
                 });
                 return { title: "General Monthly Report", topHeaderHtml, subHeaderHtml: "", tableRowsHtml };
-
             } else {
                 let topHeaderHtml = `<tr><th rowspan="2">Customer</th><th rowspan="2">Sales Team</th><th rowspan="2">Month</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">Year ${y}</th>`; });
