@@ -15,39 +15,41 @@
             --bg-color: #f8fafc;
             --border-color: #cbd5e1;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 6px; }
-        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); overflow-x: hidden; }
-        h2 { text-align: center; color: var(--dark-color); margin-bottom: 8px; font-size: 14px; }
-        .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 6px 10px; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
-        .quick-search-panel { background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid var(--border-color); }
-        .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #334155; }
-        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; align-items: flex-end; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 4px; }
+        .container { width: 100%; max-width: 100vw; margin: 0 auto; background: #ffffff; padding: 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); box-sizing: border-box; overflow: hidden; }
+        h2 { text-align: center; color: var(--dark-color); margin-bottom: 6px; font-size: 13px; }
+        .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 5px 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+        #statusText { font-weight: bold; color: #1e40af; font-size: 10px; }
+        .quick-search-panel { background: #f1f5f9; padding: 6px; border-radius: 4px; margin-bottom: 6px; border: 1px solid var(--border-color); }
+        .quick-search-title { font-weight: bold; font-size: 10px; margin-bottom: 3px; color: #334155; }
+        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; align-items: flex-end; }
         .search-field-group { display: flex; flex-direction: column; }
-        .search-field-group label { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #475569; }
-        .search-field-group input, .search-field-group select { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
-        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 5px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-size: 10px; width: 100%; }
-        .actions-bar { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-        button.action-btn, label.action-btn { padding: 5px 10px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
+        .search-field-group label { font-size: 9px; font-weight: bold; margin-bottom: 1px; color: #475569; }
+        .search-field-group input, .search-field-group select { padding: 3px 5px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 9px; background: white; outline: none; width: 100%; box-sizing: border-box; }
+        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 4px 6px; border-radius: 3px; font-weight: bold; cursor: pointer; font-size: 9px; width: 100%; }
+        .actions-bar { display: flex; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; }
+        button.action-btn, label.action-btn { padding: 4px 8px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 9px; display: inline-flex; align-items: center; gap: 3px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
-        .btn-compare { background-color: #b45309; font-size: 10px; padding: 5px 10px; }
+        .btn-compare { background-color: #b45309; font-size: 9px; padding: 4px 8px; }
         
-        .reports-buttons-grid { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+        .reports-buttons-grid { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* ضبط الجدول ليكون بعرض الشاشة بالكامل وبدون شريط تمرير أفقي */
-        .table-container { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
+        /* إجبار الجدول بالكامل على احتواء الشاشة بدون تمرير أفقي نهائياً */
+        .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; box-sizing: border-box; }
+        
+        table { width: 100%; max-width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
         
         th, td { 
-            padding: 5px 4px; 
+            padding: 4px 3px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 8.5px !important; 
+            font-size: 7.5px !important; 
             white-space: nowrap; 
             overflow: hidden;
             text-overflow: ellipsis;
+            box-sizing: border-box;
         }
 
         th { 
@@ -57,20 +59,20 @@
             position: sticky; 
             top: 0; 
             z-index: 10; 
-            line-height: 1.2;
+            line-height: 1.1;
         }
 
         tr:hover { background-color: #f1f5f9; }
-        .row-count { margin-top: 6px; font-weight: bold; color: #475569; font-size: 11px; }
+        .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
         
         .rep-subtotal-row { background-color: #dbeafe !important; font-weight: bold; border-top: 2px solid #3b82f6; color: #1e3a8a; }
         .month-detail-row { background-color: #ffffff; color: #334155; }
         .growth-pos { color: #16a34a; font-weight: bold; }
         .growth-neg { color: #dc2626; font-weight: bold; }
 
-        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 15px; box-sizing: border-box; overflow-y: auto; }
+        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
         #reportModalContainer table { width: 100%; table-layout: auto; }
-        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 9px !important; padding: 6px 8px !important; }
+        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 8.5px !important; padding: 5px 6px !important; }
     </style>
 </head>
 <body>
@@ -82,11 +84,11 @@
             <div>
                 <span id="statusText">📁 جاري التحقق من قاعدة البيانات المحلية...</span>
             </div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                 <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
                     📁 تحديث / رفع ملف جديد <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
                 </label>
-                <button class="action-btn" onclick="clearSavedData()" style="background-color: #dc2626;">🗑️ مسح الملف المحفوظ</button>
+                <button class="action-btn" onclick="clearSavedData()" style="background-color: #dc2626;">🗑️ مسح الملف</button>
             </div>
         </div>
 
@@ -101,19 +103,19 @@
             <div class="search-grid">
                 <div class="search-field-group">
                     <label>العميل:</label>
-                    <input type="text" id="searchClient" placeholder="ابحث عن العميل...">
+                    <input type="text" id="searchClient" placeholder="ابحث...">
                 </div>
                 <div class="search-field-group">
                     <label>المنتج:</label>
-                    <input type="text" id="searchProduct" placeholder="ابحث عن المنتج...">
+                    <input type="text" id="searchProduct" placeholder="ابحث...">
                 </div>
                 <div class="search-field-group">
                     <label>مندوب المبيعات:</label>
-                    <input type="text" id="searchRep" placeholder="ابحث عن المندوب...">
+                    <input type="text" id="searchRep" placeholder="ابحث...">
                 </div>
                 <div class="search-field-group">
                     <label>فريق المبيعات:</label>
-                    <input type="text" id="searchTeam" placeholder="ابحث عن الفريق...">
+                    <input type="text" id="searchTeam" placeholder="ابحث...">
                 </div>
                 <div class="search-field-group">
                     <label>السنة:</label>
@@ -155,11 +157,11 @@
 
     <!-- نافذة التقارير التحليلية المتقدمة -->
     <div id="reportModalContainer">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2 id="modalTitle" style="margin: 0; color: #1e3a8a; font-size: 14px;">⚖️ التقرير التحليلي</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h2 id="modalTitle" style="margin: 0; color: #1e3a8a; font-size: 13px;">⚖️ التقرير التحليلي</h2>
             <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
         </div>
-        <div class="table-container" style="max-height: 78vh;">
+        <div class="table-container" style="max-height: 80vh;">
             <table id="popupTable">
                 <thead id="popupHeader"></thead>
                 <tbody id="popupBody"></tbody>
@@ -224,7 +226,7 @@
         function handleFileSelect(e) {
             let file = e.target.files[0];
             if (!file) return;
-            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف الضخم، يرجى الانتظار...`;
+            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف، يرجى الانتظار...`;
             let reader = new FileReader();
             reader.onload = function(evt) {
                 try {
@@ -339,17 +341,19 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            // توزيع ذكي لأوزان الأعمدة بحيث تتناسب مع الشاشة تماماً بدون شريط تمرير أفقي
+            // تخصيص الأوزان بدقة متناهية لضمان عدم خروج أي عميل أو منتج عن إطار الشاشة وعرض الكل بدقة
             let colGroupHtml = '';
-            let totalCols = tableHeaders.length;
-            tableHeaders.forEach((h) => {
+            tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").toLowerCase();
-                let widthPercent = Math.max(8, Math.floor(100 / totalCols)); // وزن أساسي متساوٍ وموزع
-                if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthPercent = Math.max(widthPercent, 18);
-                else if (hStr.includes('العميل') || hStr.includes('customer')) widthPercent = Math.max(widthPercent, 15);
-                else if (hStr.includes('مندوب') || hStr.includes('فريق')) widthPercent = Math.max(widthPercent, 10);
+                let widthPct = 8; // الوزن الافتراضي الضيق
+                if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthPct = 25;
+                else if (hStr.includes('العميل') || hStr.includes('customer')) widthPct = 22;
+                else if (hStr.includes('مندوب') || hStr.includes('rep')) widthPct = 12;
+                else if (hStr.includes('فريق') || hStr.includes('team')) widthPct = 10;
+                else if (hStr.includes('تاريخ') || hStr.includes('date')) widthPct = 8;
+                else if (hStr.includes('رقم') || hStr.includes('قائمة')) widthPct = 9;
                 
-                colGroupHtml += `<col style="width: ${widthPercent}%;">`;
+                colGroupHtml += `<col style="width: ${widthPct}%;">`;
             });
             document.getElementById('tableColGroup').innerHTML = colGroupHtml;
 
