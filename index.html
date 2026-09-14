@@ -33,7 +33,6 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* إجبار الجدول واحتوائه بالكامل داخل الشاشة بدون تمرير أفقي نهائياً */
         .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
         table { width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
         
@@ -43,13 +42,26 @@
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 8.5px !important; /* حجم ملائم لتوزيع كافة الأعمدة بالتساوي */
+            font-size: 8.5px !important; 
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap; 
         }
 
-        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 9px !important; }
+        /* جعل رؤوس الأعمدة تظهر أسفل بعضها مع التوسيط التام وتجنب التداخل */
+        th { 
+            background-color: var(--dark-color); 
+            color: white; 
+            font-weight: bold !important; 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+            font-size: 8.5px !important; 
+            white-space: normal !important; 
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
+
         tr:hover { background-color: #f8fafc; }
         .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
@@ -320,11 +332,20 @@
             if (tableHeaders.length === 0) return;
             
             let colCount = tableHeaders.length;
-            let colWidthPercent = (100 / colCount).toFixed(2);
             
+            // حساب أوزان الأعمدة ديناميكياً بناءً على محتواها (أعمدة النصوص تأخذ مساحة أوسع، وأعمدة الأرقام والكميات تأخذ مساحة أصغر)
+            let colWeights = tableHeaders.map((h) => {
+                let hL = String(h).toLowerCase();
+                if (hL.includes('المنتج') || hL.includes('العميل')) return 3.5; // أعمدة نصوص عريضة
+                if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('تاريخ')) return 2.0; // أعمدة متوسطة
+                return 1.0; // أعمدة الأرقام الضيقة
+            });
+            let totalWeight = colWeights.reduce((a, b) => a + b, 0);
+
             let headerHtml = '<tr>';
-            tableHeaders.forEach((h) => {
-                headerHtml += `<th style="width: ${colWidthPercent}%;">${h}</th>`;
+            tableHeaders.forEach((h, idx) => {
+                let widthPct = ((colWeights[idx] / totalWeight) * 100).toFixed(2);
+                headerHtml += `<th style="width: ${widthPct}%;">${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -339,8 +360,9 @@
                 chunk.forEach(row => {
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
+                        let widthPct = ((colWeights[idx] / totalWeight) * 100).toFixed(2);
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td style="width: ${colWidthPercent}%;" title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td style="width: ${widthPct}%;" title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
