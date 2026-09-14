@@ -33,22 +33,19 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
+        .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
+        table { width: max-content; min-width: 100%; border-collapse: collapse; direction: rtl; }
         
         th, td { 
-            padding: 5px 3px; 
+            padding: 6px 8px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
             font-size: 8.5px !important; 
-            overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap; 
         }
 
-        /* جعل رؤوس الأعمدة تظهر أسفل بعضها مع التوسيط التام وتجنب التداخل */
         th { 
             background-color: var(--dark-color); 
             color: white; 
@@ -60,6 +57,7 @@
             white-space: normal !important; 
             word-wrap: break-word;
             line-height: 1.2;
+            text-align: center;
         }
 
         tr:hover { background-color: #f8fafc; }
@@ -331,21 +329,32 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            let colCount = tableHeaders.length;
-            
-            // حساب أوزان الأعمدة ديناميكياً بناءً على محتواها (أعمدة النصوص تأخذ مساحة أوسع، وأعمدة الأرقام والكميات تأخذ مساحة أصغر)
-            let colWeights = tableHeaders.map((h) => {
+            // حساب العرض بالبكسل بناءً على أطوال محتوى كل عمود (العينة المحدودة أو أطول النصوص)
+            let colWidths = tableHeaders.map((h, colIdx) => {
+                let maxLen = String(h).length;
+                // فحص عينة من أول 200 صف لمعرفة أطول نص في العمود
+                let sampleLimit = Math.min(rowsToRender.length, 200);
+                for (let i = 0; i < sampleLimit; i++) {
+                    let cellVal = String(rowsToRender[i][colIdx] || "");
+                    if (cellVal.length > maxLen) {
+                        maxLen = cellVal.length;
+                    }
+                }
+                
                 let hL = String(h).toLowerCase();
-                if (hL.includes('المنتج') || hL.includes('العميل')) return 3.5; // أعمدة نصوص عريضة
-                if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('تاريخ')) return 2.0; // أعمدة متوسطة
-                return 1.0; // أعمدة الأرقام الضيقة
+                // تخصيص الحد الأدنى والحد الأقصى للعرض حسب نوع العمود
+                if (hL.includes('المنتج') || hL.includes('العميل')) {
+                    return Math.min(Math.max(maxLen * 8, 220), 400); // أعمدة نصوص عريضة
+                } else if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('قائمة')) {
+                    return Math.min(Math.max(maxLen * 8, 130), 200); // أعمدة متوسطة
+                } else {
+                    return Math.min(Math.max(maxLen * 9, 85), 140);  // أعمدة الأرقام والتواريخ والأكواد الضيقة
+                }
             });
-            let totalWeight = colWeights.reduce((a, b) => a + b, 0);
 
             let headerHtml = '<tr>';
             tableHeaders.forEach((h, idx) => {
-                let widthPct = ((colWeights[idx] / totalWeight) * 100).toFixed(2);
-                headerHtml += `<th style="width: ${widthPct}%;">${h}</th>`;
+                headerHtml += `<th style="width: ${colWidths[idx]}px; min-width: ${colWidths[idx]}px;">${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -360,9 +369,8 @@
                 chunk.forEach(row => {
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
-                        let widthPct = ((colWeights[idx] / totalWeight) * 100).toFixed(2);
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td style="width: ${widthPct}%;" title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td style="width: ${colWidths[idx]}px; min-width: ${colWidths[idx]}px;" title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
