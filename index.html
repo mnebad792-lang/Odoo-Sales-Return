@@ -47,7 +47,6 @@
             box-sizing: border-box;
         }
 
-        /* تصغير خط البيانات إلى 10px والسماح بالتفاف النص ليظهر كاملاً بدون اختصار (...) */
         td {
             font-size: 10px !important;
             white-space: normal !important; 
@@ -55,7 +54,6 @@
             line-height: 1.2;
         }
 
-        /* رؤوس الأعمدة */
         th { 
             background-color: var(--primary-color); 
             color: white; 
@@ -349,16 +347,15 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            // توزيع محسن لنسب العرض لكي تظهر أعمدة التواريخ، المناديب، والفرق بشكل كامل بدون قص
             let colGroupHtml = '';
             tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").toLowerCase();
-                let widthPct = 5.2; // الأعمدة العادية
+                let widthPct = 5.2;
                 if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthPct = 22;
                 else if (hStr.includes('العميل') || hStr.includes('customer')) widthPct = 20;
                 else if (hStr.includes('مندوب') || hStr.includes('rep')) widthPct = 9;
                 else if (hStr.includes('فريق') || hStr.includes('team')) widthPct = 8;
-                else if (hStr.includes('تاريخ') || hStr.includes('date')) widthPct = 6.5; // إعطاء مساحة مريحة للتواريخ
+                else if (hStr.includes('تاريخ') || hStr.includes('date')) widthPct = 6.5;
                 
                 colGroupHtml += `<col style="width: ${widthPct}%;">`;
             });
@@ -456,11 +453,12 @@
                         groupData[repName].months[monthNum].years[year].sales += amount;
                     }
                 } else if (type === 'months') {
-                    let key1 = dObj ? `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}` : "غير محدد";
-                    if (!groupData[key1]) groupData[key1] = { team: "الشهور العامة", years: {} };
-                    if (!groupData[key1].years[year]) groupData[key1].years[year] = { sales: 0, returns: 0 };
-                    if (isReturn) groupData[key1].years[year].returns += Math.abs(amount);
-                    else groupData[key1].years[year].sales += amount;
+                    // التجميع حسب رقم الشهر (1 إلى 12) لترتيبه وعرض اسمه بانتظام
+                    let mKey = monthNum === 0 ? 99 : monthNum;
+                    if (!groupData[mKey]) groupData[mKey] = { monthNum: monthNum, years: {} };
+                    if (!groupData[mKey].years[year]) groupData[mKey].years[year] = { sales: 0, returns: 0 };
+                    if (isReturn) groupData[mKey].years[year].returns += Math.abs(amount);
+                    else groupData[mKey].years[year].sales += amount;
                 } else if (type === 'clients') {
                     let key1 = String(row[clientIdx] || "عميل غير محدد").trim();
                     if (!groupData[key1]) groupData[key1] = { team: "العملاء", years: {} };
@@ -552,10 +550,54 @@
                 });
 
                 return { title: "تقرير المناديب والفرق والشهور ونسب النمو", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+            
+            } else if (type === 'months') {
+                // تقرير الشهور العامة مع اسم الشهر، بدون تصنيف، ومع نسب النمو والمؤشرات
+                let topHeaderHtml = `<tr>
+                    <th rowspan="2">الشهر</th>`;
+                sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
+                if (sortedYears.length >= 2) {
+                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">نسبة النمو (%)</th><th rowspan="2" style="background:#1e3a8a;">المؤشر</th>`;
+                }
+                topHeaderHtml += `</tr>`;
+
+                let subHeaderHtml = `<tr>`;
+                sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
+                subHeaderHtml += `</tr>`;
+
+                let tableRowsHtml = '';
+                Object.keys(groupData).sort((a,b)=>Number(a)-Number(b)).forEach(k => {
+                    let mObj = groupData[k];
+                    let mNum = mObj.monthNum;
+                    let monthName = mNum == 0 ? "غير محدد" : new Date(2026, mNum - 1, 1).toLocaleString('ar', { month: 'long' });
+
+                    let baseNet = 0, compNet = 0;
+                    tableRowsHtml += `<tr class="month-detail-row">
+                        <td style="font-weight:bold; background:#f8fafc; color:#1e3a8a;">${monthName}</td>`;
+
+                    sortedYears.forEach(y => {
+                        let yData = mObj.years[y] || { sales: 0, returns: 0 };
+                        let netY = yData.sales - yData.returns;
+                        tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
+                        
+                        if(y === baseYear) baseNet = netY;
+                        if(y === compareYear) compNet = netY;
+                    });
+
+                    if (sortedYears.length >= 2) {
+                        let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
+                        let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
+                        let indicator = growth > 0 ? "📈 نمو مرتفع" : (growth === 0 ? "➖ مستقر" : "📉 انخفاض");
+                        tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
+                    }
+                    tableRowsHtml += `</tr>`;
+                });
+
+                return { title: "تقرير الشهور العامة", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+
             } else {
-                let titleName = type === 'months' ? "تقرير الشهور العامة" : "تقرير العملاء";
-                let colName1 = type === 'months' ? "الشهر" : "العميل";
-                let topHeaderHtml = `<tr><th rowspan="2">${colName1}</th><th rowspan="2">التصنيف</th>`;
+                let titleName = "تقرير العملاء";
+                let topHeaderHtml = `<tr><th rowspan="2">العميل</th><th rowspan="2">التصنيف</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
                 topHeaderHtml += `<th colspan="3" style="background:#b45309;">الإجمالي الكلي</th></tr>`;
 
