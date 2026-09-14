@@ -51,8 +51,6 @@
         }
 
         th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
-        .team-group-header { background-color: var(--team-header-bg) !important; font-weight: bold !important; color: #0f172a !important; text-align: right !important; font-size: 9pt !important; border-top: 2px solid #94a3b8; }
-        .team-total-row { background-color: var(--team-total-bg) !important; font-weight: bold !important; color: #0369a1 !important; border-top: 1px solid #0284c7; border-bottom: 2px solid #0284c7; }
         tr:hover { background-color: #f8fafc; }
         .row-count { margin-top: 5px; font-weight: bold; color: #475569; font-size: 11px; }
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 15px; box-sizing: border-box; overflow-y: auto; }
@@ -65,7 +63,7 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">📁 جاري التحقق من الملف المحفوظ مسبقاً...</span>
+                <span id="statusText">📁 جاري التحقق من قاعدة البيانات المحلية...</span>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
@@ -157,34 +155,68 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        window.onload = function() {
-            loadSavedDataFromStorage();
+        // تهيئة قاعدة البيانات الداخلية للمتصفح (IndexedDB) لدعم الملفات الكبيرة
+        let db;
+        const request = indexedDB.open("SalesDatabase", 1);
+
+        request.onupgradeneeded = function(e) {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("store")) {
+                db.createObjectStore("store");
+            }
         };
 
-        function loadSavedDataFromStorage() {
-            let savedHeaders = localStorage.getItem('app_headers');
-            let savedData = localStorage.getItem('app_data');
+        request.onsuccess = function(e) {
+            db = e.target.result;
+            loadDataFromIndexedDB();
+        };
 
-            if (savedHeaders && savedData) {
-                try {
-                    tableHeaders = JSON.parse(savedHeaders);
-                    globalAllData = JSON.parse(savedData);
-                    document.getElementById('statusText').innerText = `✅ تم استرجاع البيانات المحفوظة بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+        request.onerror = function(e) {
+            console.error("خطأ في فتح قاعدة البيانات:", e.target.error);
+        };
+
+        function saveDataToIndexedDB(headers, data) {
+            if (!db) return;
+            let tx = db.transaction("store", "readwrite");
+            let store = tx.objectStore("store");
+            store.put(headers, "headers");
+            store.put(data, "data");
+            tx.oncomplete = function() {
+                console.log("تم حفظ البيانات الضخمة بنجاح في قاعدة بيانات المتصفح.");
+            };
+        }
+
+        function loadDataFromIndexedDB() {
+            if (!db) return;
+            let tx = db.transaction("store", "readonly");
+            let store = tx.objectStore("store");
+            
+            let reqHeaders = store.get("headers");
+            let reqData = store.get("data");
+
+            reqHeaders.onsuccess = function() {
+                if (reqHeaders.result) {
+                    tableHeaders = reqHeaders.result;
+                }
+            };
+
+            reqData.onsuccess = function() {
+                if (reqData.result) {
+                    globalAllData = reqData.result;
+                    document.getElementById('statusText').innerText = `✅ تم استرجاع البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
                     detectColumnsAutomatically();
                     extractYears();
                     renderTableRows(globalAllData);
-                    return;
-                } catch(e) {
-                    console.error("خطأ في قراءة البيانات المخزنة:", e);
+                } else {
+                    document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات محفوظة. يرجى رفع ملف الإكسيل/CSV للبدء.`;
                 }
-            }
-            document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات محفوظة. يرجى رفع ملف الإكسيل/CSV للبدء.`;
+            };
         }
 
         function handleFileSelect(e) {
             let file = e.target.files[0];
             if (!file) return;
-            document.getElementById('statusText').innerText = `📁 جاري قراءة وحفظ الملف المرفوع...`;
+            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف الضخم، قد يستغرق ذلك ثواني...`;
             let reader = new FileReader();
             reader.onload = function(evt) {
                 try {
@@ -199,11 +231,10 @@
                         tableHeaders = cleanRows[0];
                         globalAllData = cleanRows.slice(1);
                         
-                        // حفظ البيانات في المتصفح لتظل موجودة عند إعادة فتح الموقع
-                        localStorage.setItem('app_headers', JSON.stringify(tableHeaders));
-                        localStorage.setItem('app_data', JSON.stringify(globalAllData));
+                        // حفظ البيانات مباشرة في IndexedDB لتتحمل الحجم الكبير
+                        saveDataToIndexedDB(tableHeaders, globalAllData);
 
-                        document.getElementById('statusText').innerText = `✅ تم حفظ البيانات وقراءتها بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                        document.getElementById('statusText').innerText = `✅ تمت معالجة وحفظ البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
                         detectColumnsAutomatically();
                         extractYears();
                         renderTableRows(globalAllData);
@@ -217,8 +248,9 @@
 
         function clearSavedData() {
             if (confirm("هل أنت متأكد من مسح البيانات المحفوظة؟")) {
-                localStorage.removeItem('app_headers');
-                localStorage.removeItem('app_data');
+                let tx = db.transaction("store", "readwrite");
+                let store = tx.objectStore("store");
+                store.clear();
                 globalAllData = [];
                 tableHeaders = [];
                 document.getElementById('tableHeader').innerHTML = '';
