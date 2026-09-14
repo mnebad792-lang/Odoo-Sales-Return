@@ -191,11 +191,13 @@
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
         async function loadDataFromSupabase() {
-            document.getElementById('statusText').innerText = `🔄 جاري مزامنة البيانات من السحابة...`;
+            document.getElementById('statusText').innerText = `🔄 جاري مزامنة البيانات من السحابة (جلب الكل)...`;
             
+            // جلب حتى 500,000 سجل لتجاوز حد الـ 1000 الافتراضي
             let { data, error } = await supabaseClient
                 .from('odoo_sales_return') 
-                .select('*');
+                .select('*')
+                .range(0, 500000);
 
             if (error) {
                 console.error('خطأ في الاتصال:', error);
