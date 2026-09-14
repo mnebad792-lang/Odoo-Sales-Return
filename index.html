@@ -190,31 +190,54 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
+        // جلب جميع السجلات دفعة وراء دفعة لتجاوز حد الـ 1000 سجل في Supabase
         async function loadDataFromSupabase() {
-            document.getElementById('statusText').innerText = `🔄 جاري مزامنة البيانات من السحابة (جلب الكل)...`;
+            document.getElementById('statusText').innerText = `🔄 جاري سحب كافة البيانات من السحابة (جاري جلب الدفعات)...`;
             
-            // جلب حتى 500,000 سجل لتجاوز حد الـ 1000 الافتراضي
-            let { data, error } = await supabaseClient
-                .from('odoo_sales_return') 
-                .select('*')
-                .range(0, 500000);
+            let allFetchedData = [];
+            let pageSize = 1000;
+            let page = 0;
+            let fetchMore = true;
 
-            if (error) {
-                console.error('خطأ في الاتصال:', error);
-                document.getElementById('statusText').innerText = `❌ خطأ في الاتصال بقاعدة البيانات. تأكد من تطابق اسم الجدول و RLS.`;
-                return;
-            }
+            try {
+                while (fetchMore) {
+                    let start = page * pageSize;
+                    let end = start + pageSize - 1;
+                    
+                    let { data, error } = await supabaseClient
+                        .from('odoo_sales_return') 
+                        .select('*')
+                        .range(start, end);
 
-            if (data && data.length > 0) {
-                tableHeaders = Object.keys(data[0]);
-                globalAllData = data.map(row => Object.values(row));
+                    if (error) throw error;
 
-                document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح من السحابة (${globalAllData.length.toLocaleString()} سجل).`;
-                detectColumnsAutomatically();
-                extractYears();
-                renderTableRows(globalAllData);
-            } else {
-                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول odoo_sales_return حالياً. استخدم زر الرفع لإضافة بيانات.`;
+                    if (data && data.length > 0) {
+                        allFetchedData = allFetchedData.concat(data);
+                        document.getElementById('statusText').innerText = `📥 جاري التحميل... تم سحب (${allFetchedData.length.toLocaleString()} سجل حتى الآن)`;
+                        if (data.length < pageSize) {
+                            fetchMore = false;
+                        } else {
+                            page++;
+                        }
+                    } else {
+                        fetchMore = false;
+                    }
+                }
+
+                if (allFetchedData.length > 0) {
+                    tableHeaders = Object.keys(allFetchedData[0]);
+                    globalAllData = allFetchedData.map(row => Object.values(row));
+
+                    document.getElementById('statusText').innerText = `✅ تم تحميل كافة البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
+                    detectColumnsAutomatically();
+                    extractYears();
+                    renderTableRows(globalAllData);
+                } else {
+                    document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول odoo_sales_return حالياً.`;
+                }
+            } catch (err) {
+                console.error('خطأ في سحب البيانات:', err);
+                document.getElementById('statusText').innerText = `❌ حدث خطأ أثناء سحب البيانات: ` + (err.message || err);
             }
         }
 
@@ -245,15 +268,18 @@
                         return;
                     }
 
-                    statusText.innerText = `⏳ جاري رفع ${jsonData.length} سجل إلى جدول odoo_sales_return...`;
+                    statusText.innerText = `⏳ جاري رفع ${jsonData.length} سجل إلى جدول odoo_sales_return (على دفعات)...`;
 
-                    const { error } = await supabaseClient
-                        .from('odoo_sales_return')
-                        .insert(jsonData);
+                    // رفع البيانات على دفعات لضمان عدم حدوث ضغط على الخادم
+                    let batchSize = 500;
+                    for (let i = 0; i < jsonData.length; i += batchSize) {
+                        let chunk = jsonData.slice(i, i + batchSize);
+                        let { error } = await supabaseClient.from('odoo_sales_return').insert(chunk);
+                        if (error) throw error;
+                        statusText.innerText = `⏳ جاري الرفع... تم رفع ${Math.min(i + batchSize, jsonData.length)} من ${jsonData.length} سجل`;
+                    }
 
-                    if (error) throw error;
-
-                    statusText.innerText = `✅ تم رفع وتحديث البيانات بنجاح في قاعدة البيانات!`;
+                    statusText.innerText = `✅ تم رفع وتحديث كافة البيانات بنجاح في قاعدة البيانات!`;
                     fileInput.value = '';
                     loadDataFromSupabase();
 
