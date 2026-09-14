@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام تحليل ومقارنة المبيعات والتقارير المتقدمة</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- مكتبة Supabase للاتصال السحابي -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -88,13 +89,10 @@
 
         <div class="upload-section">
             <div>
-                <span id="statusText">📁 جاري التحقق من قاعدة البيانات المحلية...</span>
+                <span id="statusText">🔄 جاري الاتصال بقاعدة البيانات السحابية وجلب أحدث البيانات...</span>
             </div>
             <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
-                    📁 تحديث / رفع ملف جديد <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
-                </label>
-                <button class="action-btn" onclick="clearSavedData()" style="background-color: #dc2626;">🗑️ مسح الملف</button>
+                <button class="action-btn" onclick="loadDataFromSupabase()" style="background-color: #0284c7;">🔄 تحديث البيانات يدويًا</button>
             </div>
         </div>
 
@@ -176,104 +174,51 @@
     </div>
 
     <script>
+        // إعدادات الاتصال بـ Supabase (مُدمجة تلقائياً)
+        const SUPABASE_URL = 'https://gpzosgixzwqdxghquilb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdwem9zZ2l4endxZHhnaHF1aWxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODIxNTEsImV4cCI6MjEwNDk1ODE1MX0.7uON2Wz0cH1jsmlOy3s7d1qf3Hj9E7tVn2OWwUEwz4o';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let globalAllData = [];
         let tableHeaders = [];
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        let db;
-        const request = indexedDB.open("SalesDatabase", 1);
-
-        request.onupgradeneeded = function(e) {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains("store")) {
-                db.createObjectStore("store");
-            }
-        };
-
-        request.onsuccess = function(e) {
-            db = e.target.result;
-            loadDataFromIndexedDB();
-        };
-
-        function saveDataToIndexedDB(headers, data) {
-            if (!db) return;
-            let tx = db.transaction("store", "readwrite");
-            let store = tx.objectStore("store");
-            store.put(headers, "headers");
-            store.put(data, "data");
-        }
-
-        function loadDataFromIndexedDB() {
-            if (!db) return;
-            let tx = db.transaction("store", "readonly");
-            let store = tx.objectStore("store");
+        // جلب البيانات تلقائياً من Supabase عند فتح الصفحة
+        async function loadDataFromSupabase() {
+            document.getElementById('statusText').innerText = `🔄 جاري مزامنة البيانات من السحابة...`;
             
-            let reqHeaders = store.get("headers");
-            let reqData = store.get("data");
+            let { data, error } = await supabaseClient
+                .from('sales_data') // اسم الجدول في قاعدة البيانات
+                .select('*');
 
-            reqHeaders.onsuccess = function() {
-                if (reqHeaders.result) tableHeaders = reqHeaders.result;
-            };
+            if (error) {
+                console.error('خطأ في الاتصال:', error);
+                document.getElementById('statusText').innerText = `❌ خطأ في الاتصال بقاعدة البيانات. تأكد من إعدادات الجدول.`;
+                return;
+            }
 
-            reqData.onsuccess = function() {
-                if (reqData.result) {
-                    globalAllData = reqData.result;
-                    document.getElementById('statusText').innerText = `✅ تم استرجاع البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
-                    detectColumnsAutomatically();
-                    extractYears();
-                    renderTableRows(globalAllData);
-                } else {
-                    document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات محفوظة. يرجى رفع ملف الإكسيل/CSV للبدء.`;
-                }
-            };
-        }
+            if (data && data.length > 0) {
+                // استخراج عناوين الأعمدة ديناميكياً من أول صف في الجدول
+                tableHeaders = Object.keys(data[0]);
+                
+                // تحويل بيانات الجدول إلى مصفوفات صفوف تناسب عمل النظام
+                globalAllData = data.map(row => Object.values(row));
 
-        function handleFileSelect(e) {
-            let file = e.target.files[0];
-            if (!file) return;
-            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف، يرجى الانتظار...`;
-            let reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    let data = new Uint8Array(evt.target.result);
-                    let workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    let sheetName = workbook.SheetNames[0];
-                    let worksheet = workbook.Sheets[sheetName];
-                    let jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-                    let cleanRows = jsonRows.filter(row => row && row.some(cell => cell !== ""));
-
-                    if (cleanRows && cleanRows.length > 0) {
-                        tableHeaders = cleanRows[0];
-                        globalAllData = cleanRows.slice(1);
-                        saveDataToIndexedDB(tableHeaders, globalAllData);
-
-                        document.getElementById('statusText').innerText = `✅ تمت معالجة وحفظ البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
-                        detectColumnsAutomatically();
-                        extractYears();
-                        renderTableRows(globalAllData);
-                    }
-                } catch(ex) {
-                    alert("حدث خطأ أثناء قراءة الملف: " + ex.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function clearSavedData() {
-            if (confirm("هل أنت متأكد من مسح البيانات المحفوظة؟")) {
-                let tx = db.transaction("store", "readwrite");
-                let store = tx.objectStore("store");
-                store.clear();
-                globalAllData = [];
-                tableHeaders = [];
-                document.getElementById('tableHeader').innerHTML = '';
-                document.getElementById('tableBody').innerHTML = '';
-                document.getElementById('tableColGroup').innerHTML = '';
-                document.getElementById('rowCount').innerText = `عدد السجلات الإجمالي: 0`;
-                document.getElementById('statusText').innerText = `🗑️ تم مسح البيانات. يرجى رفع ملف جديد.`;
+                document.getElementById('statusText').innerText = `✅ تم تحديث البيانات بنجاح من السحابة (${globalAllData.length.toLocaleString()} سجل).`;
+                detectColumnsAutomatically();
+                extractYears();
+                renderTableRows(globalAllData);
+            } else {
+                document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في قاعدة البيانات حالياً.`;
             }
         }
+
+        // تشغيل الجلب فور فتح الصفحة
+        window.onload = function() {
+            loadDataFromSupabase();
+        };
 
         function detectColumnsAutomatically() {
             tableHeaders.forEach((h, idx) => {
@@ -284,7 +229,7 @@
                 if (hStr.includes('منتج') || hStr.includes('item') || hStr.includes('product')) detectedIndices.productIdx = idx;
                 if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('طلب')) detectedIndices.dateIdx = idx;
                 if ((hStr.includes('تاريخ') || hStr.includes('date')) && hStr.includes('فاتورة')) detectedIndices.invoiceDateIdx = idx;
-                if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي')) detectedIndices.valIdx = idx;
+                if (hStr.includes('مبلغ') || hStr.includes('قيمة') || hStr.includes('بدون') || hStr.includes('إجمالي') || hStr.includes('amount')) detectedIndices.valIdx = idx;
                 if (hStr.includes('رقم') && (hStr.includes('فاتورة') || hStr.includes('invoice'))) detectedIndices.invoiceColIndex = idx;
             });
             if (detectedIndices.teamIdx === -1) detectedIndices.teamIdx = 0;
@@ -319,10 +264,10 @@
 
         function formatCellData(val, headerName, cellIdx) {
             let hLower = String(headerName || "").toLowerCase();
-            if (cellIdx === detectedIndices.dateIdx || cellIdx === detectedIndices.invoiceDateIdx || hLower.includes('تاريخ')) {
+            if (cellIdx === detectedIndices.dateIdx || cellIdx === detectedIndices.invoiceDateIdx || hLower.includes('تاريخ') || hLower.includes('date')) {
                 return formatDateClean(val);
             }
-            if (!isNaN(val) && val !== "" && val !== null && (hLower.includes('مبلغ') || hLower.includes('قيمة') || hLower.includes('إجمالي') || hLower.includes('سعر') || hLower.includes('الكمية') || hLower.includes('نسبة'))) {
+            if (!isNaN(val) && val !== "" && val !== null && (hLower.includes('مبلغ') || hLower.includes('قيمة') || hLower.includes('إجمالي') || hLower.includes('سعر') || hLower.includes('amount') || hLower.includes('الكمية'))) {
                 let num = Number(val);
                 return Number.isInteger(num) ? num.toLocaleString() : Number(num.toFixed(2)).toLocaleString();
             }
@@ -448,11 +393,8 @@
                     if (!groupData[repName].months[monthNum]) groupData[repName].months[monthNum] = { years: {} };
                     if (!groupData[repName].months[monthNum].years[year]) groupData[repName].months[monthNum].years[year] = { sales: 0, returns: 0 };
 
-                    if (isReturn) {
-                        groupData[repName].months[monthNum].years[year].returns += Math.abs(amount);
-                    } else {
-                        groupData[repName].months[monthNum].years[year].sales += amount;
-                    }
+                    if (isReturn) groupData[repName].months[monthNum].years[year].returns += Math.abs(amount);
+                    else groupData[repName].months[monthNum].years[year].sales += amount;
                 } else if (type === 'months') {
                     let mKey = monthNum === 0 ? 99 : monthNum;
                     if (!groupData[mKey]) groupData[mKey] = { monthNum: monthNum, years: {} };
@@ -460,7 +402,6 @@
                     if (isReturn) groupData[mKey].years[year].returns += Math.abs(amount);
                     else groupData[mKey].years[year].sales += amount;
                 } else if (type === 'clients') {
-                    // تقرير العملاء بهيكل مشابه تماماً للمناديب (اسم العميل ثم الشهور تحته ثم إجمالي العميل)
                     if (!groupData[clientName]) groupData[clientName] = { team: teamName, months: {} };
                     if (!groupData[clientName].months[monthNum]) groupData[clientName].months[monthNum] = { years: {} };
                     if (!groupData[clientName].months[monthNum].years[year]) groupData[clientName].months[monthNum].years[year] = { sales: 0, returns: 0 };
@@ -596,7 +537,6 @@
                 return { title: "تقرير الشهور العامة", topHeaderHtml, subHeaderHtml, tableRowsHtml };
 
             } else {
-                // تقرير العملاء المحدث: العميل ثم الشهر ثم إجمالي العميل في الأسفل مع نسب النمو
                 let topHeaderHtml = `<tr>
                     <th rowspan="2">العميل</th>
                     <th rowspan="2">فريق المبيعات</th>
@@ -677,7 +617,7 @@
         }
 
         function openReportModal(type) {
-            if (globalAllData.length === 0) { alert("يرجى تحميل أو إرفاق البيانات أولاً."); return; }
+            if (globalAllData.length === 0) { alert("جاري تحميل البيانات من السحابة، يرجى الانتظار ثوانٍ."); return; }
             let res = generateReport(type);
             document.getElementById('modalTitle').innerText = `⚖️ ${res.title}`;
             document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
@@ -686,7 +626,7 @@
         }
 
         function closeReportModal() { document.getElementById('reportModalContainer').style.display = 'none'; }
-        function exportToExcel() { alert("تصدير Excel متاح عبر التقارير التفصيلية."); }
+        function exportToExcel() { alert("تصدير Excel متاح من خلال التقارير التفصيلية والطباعة."); }
         function exportToPDFFile() { window.print(); }
         function printReport() { window.print(); }
     </script>
