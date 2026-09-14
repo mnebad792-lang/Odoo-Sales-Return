@@ -16,7 +16,7 @@
             --border-color: #cbd5e1;
         }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 6px; }
-        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); overflow-x: hidden; }
         h2 { text-align: center; color: var(--dark-color); margin-bottom: 8px; font-size: 14px; }
         .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 6px 10px; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
@@ -34,17 +34,20 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
         
-        .table-container { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: max-content; border-collapse: collapse; direction: rtl; }
+        /* ضبط الجدول ليكون بعرض الشاشة بالكامل وبدون شريط تمرير أفقي */
+        .table-container { width: 100%; max-height: 550px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; direction: rtl; }
         
         th, td { 
-            padding: 6px 10px; 
+            padding: 5px 4px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 9px !important; 
+            font-size: 8.5px !important; 
             white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         th { 
@@ -54,7 +57,7 @@
             position: sticky; 
             top: 0; 
             z-index: 10; 
-            line-height: 1.3;
+            line-height: 1.2;
         }
 
         tr:hover { background-color: #f1f5f9; }
@@ -66,7 +69,7 @@
         .growth-neg { color: #dc2626; font-weight: bold; }
 
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 15px; box-sizing: border-box; overflow-y: auto; }
-        #reportModalContainer table { width: max-content; }
+        #reportModalContainer table { width: 100%; table-layout: auto; }
         #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 9px !important; padding: 6px 8px !important; }
     </style>
 </head>
@@ -336,16 +339,17 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
+            // توزيع ذكي لأوزان الأعمدة بحيث تتناسب مع الشاشة تماماً بدون شريط تمرير أفقي
             let colGroupHtml = '';
+            let totalCols = tableHeaders.length;
             tableHeaders.forEach((h) => {
                 let hStr = String(h || "").toLowerCase();
-                let widthVal = "120px";
-                if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthVal = "280px";
-                else if (hStr.includes('العميل') || hStr.includes('customer')) widthVal = "220px";
-                else if (hStr.includes('مندوب') || hStr.includes('فريق')) widthVal = "150px";
-                else if (hStr.includes('تاريخ')) widthVal = "110px";
-                else if (hStr.includes('رقم')) widthVal = "130px";
-                colGroupHtml += `<col style="width: ${widthVal};">`;
+                let widthPercent = Math.max(8, Math.floor(100 / totalCols)); // وزن أساسي متساوٍ وموزع
+                if (hStr.includes('المنتج') || hStr.includes('item') || hStr.includes('product')) widthPercent = Math.max(widthPercent, 18);
+                else if (hStr.includes('العميل') || hStr.includes('customer')) widthPercent = Math.max(widthPercent, 15);
+                else if (hStr.includes('مندوب') || hStr.includes('فريق')) widthPercent = Math.max(widthPercent, 10);
+                
+                colGroupHtml += `<col style="width: ${widthPercent}%;">`;
             });
             document.getElementById('tableColGroup').innerHTML = colGroupHtml;
 
