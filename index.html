@@ -13,47 +13,44 @@
             --dark-color: #1e293b;
             --bg-color: #f8fafc;
             --border-color: #cbd5e1;
-            --team-header-bg: #e2e8f0;
-            --team-total-bg: #f1f5f9;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 8px; }
-        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 12px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        h2 { text-align: center; color: var(--dark-color); margin-bottom: 12px; font-size: 16px; }
-        .upload-section { background: #eff6ff; border: 2px dashed #3b82f6; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 6px; }
+        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: var(--dark-color); margin-bottom: 8px; font-size: 15px; }
+        .upload-section { background: #eff6ff; border: 2px dashed #3b82f6; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
-        .quick-search-panel { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border-color); }
-        .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 6px; color: #334155; }
-        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 6px; align-items: flex-end; }
+        .quick-search-panel { background: #f1f5f9; padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--border-color); }
+        .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #334155; }
+        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; align-items: flex-end; }
         .search-field-group { display: flex; flex-direction: column; }
-        .search-field-group label { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #475569; }
-        .search-field-group input, .search-field-group select { padding: 5px 6px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
-        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 5px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; height: 27px; width: 100%; }
-        .actions-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
-        button.action-btn, label.action-btn { padding: 5px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+        .search-field-group label { font-size: 9px; font-weight: bold; margin-bottom: 2px; color: #475569; }
+        .search-field-group input, .search-field-group select { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
+        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 10px; height: 25px; width: 100%; }
+        .actions-bar { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+        button.action-btn, label.action-btn { padding: 4px 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
-        .btn-compare { background-color: #d97706; font-size: 11px; padding: 7px 12px; }
+        .btn-compare { background-color: #d97706; font-size: 10px; padding: 5px 10px; }
         
-        .reports-buttons-grid { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+        .reports-buttons-grid { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
         
-        .table-container { width: 100%; overflow-x: auto; max-height: 550px; border: 1px solid var(--border-color); border-radius: 8px; background: white; direction: ltr; }
-        table { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; direction: rtl; }
+        /* تعديل الحاوية لعرض جميع الأعمدة بوضوح */
+        .table-container { width: 100%; overflow-x: auto; max-height: 520px; border: 1px solid var(--border-color); border-radius: 6px; background: white; }
+        table { width: 100%; border-collapse: collapse; table-layout: auto; }
         
         th, td { 
-            padding: 6px 8px; 
+            padding: 5px 6px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 8pt !important; 
+            font-size: 7.5pt !important; 
             white-space: nowrap !important; 
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
         tr:hover { background-color: #f8fafc; }
-        .row-count { margin-top: 5px; font-weight: bold; color: #475569; font-size: 11px; }
-        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 15px; box-sizing: border-box; overflow-y: auto; }
+        .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
+        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 12px; box-sizing: border-box; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -65,7 +62,7 @@
             <div>
                 <span id="statusText">📁 جاري التحقق من قاعدة البيانات المحلية...</span>
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
                     📁 تحديث / رفع ملف جديد <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
                 </label>
@@ -137,11 +134,11 @@
 
     <!-- نافذة التقارير التحليلية المتقدمة -->
     <div id="reportModalContainer">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h2 id="modalTitle" style="margin: 0; color: #2563eb; font-size: 15px;">⚖️ التقرير التحليلي</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h2 id="modalTitle" style="margin: 0; color: #2563eb; font-size: 14px;">⚖️ التقرير التحليلي</h2>
             <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
         </div>
-        <div class="table-container" style="max-height: 70vh;">
+        <div class="table-container" style="max-height: 72vh;">
             <table id="popupTable">
                 <thead id="popupHeader"></thead>
                 <tbody id="popupBody"></tbody>
@@ -155,7 +152,6 @@
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // تهيئة قاعدة البيانات الداخلية للمتصفح (IndexedDB) لدعم الملفات الكبيرة
         let db;
         const request = indexedDB.open("SalesDatabase", 1);
 
@@ -171,19 +167,12 @@
             loadDataFromIndexedDB();
         };
 
-        request.onerror = function(e) {
-            console.error("خطأ في فتح قاعدة البيانات:", e.target.error);
-        };
-
         function saveDataToIndexedDB(headers, data) {
             if (!db) return;
             let tx = db.transaction("store", "readwrite");
             let store = tx.objectStore("store");
             store.put(headers, "headers");
             store.put(data, "data");
-            tx.oncomplete = function() {
-                console.log("تم حفظ البيانات الضخمة بنجاح في قاعدة بيانات المتصفح.");
-            };
         }
 
         function loadDataFromIndexedDB() {
@@ -195,9 +184,7 @@
             let reqData = store.get("data");
 
             reqHeaders.onsuccess = function() {
-                if (reqHeaders.result) {
-                    tableHeaders = reqHeaders.result;
-                }
+                if (reqHeaders.result) tableHeaders = reqHeaders.result;
             };
 
             reqData.onsuccess = function() {
@@ -216,7 +203,7 @@
         function handleFileSelect(e) {
             let file = e.target.files[0];
             if (!file) return;
-            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف الضخم، قد يستغرق ذلك ثواني...`;
+            document.getElementById('statusText').innerText = `📁 جاري قراءة الملف الضخم، يرجى الانتظار...`;
             let reader = new FileReader();
             reader.onload = function(evt) {
                 try {
@@ -230,8 +217,6 @@
                     if (cleanRows && cleanRows.length > 0) {
                         tableHeaders = cleanRows[0];
                         globalAllData = cleanRows.slice(1);
-                        
-                        // حفظ البيانات مباشرة في IndexedDB لتتحمل الحجم الكبير
                         saveDataToIndexedDB(tableHeaders, globalAllData);
 
                         document.getElementById('statusText').innerText = `✅ تمت معالجة وحفظ البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
@@ -332,25 +317,15 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            let repIdx = detectedIndices.repIdx;
-            let teamIdx = detectedIndices.teamIdx;
-            let sortedIndices = [];
-            
-            if (repIdx !== -1) sortedIndices.push(repIdx);
-            if (teamIdx !== -1 && teamIdx !== repIdx) sortedIndices.push(teamIdx);
-            
-            tableHeaders.forEach((h, idx) => {
-                if (idx !== repIdx && idx !== teamIdx) sortedIndices.push(idx);
-            });
-
+            // عرض الأعمدة بترتيب الملف الأصلي بالكامل دون إخفاء أي عمود
             let headerHtml = '<tr>';
-            sortedIndices.forEach(idx => {
-                headerHtml += `<th>${tableHeaders[idx]}</th>`;
+            tableHeaders.forEach((h, idx) => {
+                headerHtml += `<th>${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
 
-            let chunkSize = 500, index = 0;
+            let chunkSize = 400, index = 0;
             let tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
@@ -359,8 +334,8 @@
                 let bodyHtml = '';
                 chunk.forEach(row => {
                     bodyHtml += '<tr>';
-                    sortedIndices.forEach(idx => {
-                        let displayVal = formatCellData(row[idx], tableHeaders[idx], idx);
+                    tableHeaders.forEach((h, idx) => {
+                        let displayVal = formatCellData(row[idx], h, idx);
                         bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
@@ -461,7 +436,6 @@
             subHeaderHtml += `<th>إجمالي مبيعات</th><th>إجمالي مرتجعات</th><th>إجمالي صافي</th></tr>`;
 
             let tableRowsHtml = '';
-
             Object.keys(groupData).sort().forEach(k1 => {
                 let item = groupData[k1];
                 let itemTotalSales = 0, itemTotalReturns = 0;
@@ -471,7 +445,6 @@
                     let yData = item.years[y] || { sales: 0, returns: 0 };
                     let netY = yData.sales - yData.returns;
                     tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                    
                     itemTotalSales += yData.sales;
                     itemTotalReturns += yData.returns;
                 });
