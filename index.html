@@ -114,9 +114,14 @@
         function loadGoogleSheetData() {
             document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات مباشرة من الشيت...";
             
-            // استخدام Fetch الآمن لتجاوز مشاكل التوجيه
-            fetch(GOOGLE_SHEET_CSV_URL, { redirect: 'follow' })
-                .then(response => response.text())
+            // استخدام الوسيط الآمن لتجاوز قيود الاتصال بشكل نهائي
+            const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
+
+            fetch(proxyUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error("Network response was not ok");
+                    return response.text();
+                })
                 .then(csvText => {
                     Papa.parse(csvText, {
                         header: false,
@@ -139,7 +144,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت بصلاحية Anyone وإعادة النشر New Deployment.";
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت على الويب بصلاحية Anyone.";
                 });
         }
 
