@@ -433,6 +433,7 @@
             globalAllData.forEach(row => {
                 let repName = String(row[repIdx] || "مندوب غير محدد").trim();
                 let teamName = String(row[teamIdx] || "فريق غير محدد").trim();
+                let clientName = String(row[clientIdx] || "عميل غير محدد").trim();
                 
                 let dObj = parseRowDate(row[dateIdx]);
                 let year = dObj ? dObj.getFullYear() : "غير محدد";
@@ -453,18 +454,18 @@
                         groupData[repName].months[monthNum].years[year].sales += amount;
                     }
                 } else if (type === 'months') {
-                    // التجميع حسب رقم الشهر (1 إلى 12) لترتيبه وعرض اسمه بانتظام
                     let mKey = monthNum === 0 ? 99 : monthNum;
                     if (!groupData[mKey]) groupData[mKey] = { monthNum: monthNum, years: {} };
                     if (!groupData[mKey].years[year]) groupData[mKey].years[year] = { sales: 0, returns: 0 };
                     if (isReturn) groupData[mKey].years[year].returns += Math.abs(amount);
                     else groupData[mKey].years[year].sales += amount;
                 } else if (type === 'clients') {
-                    let key1 = String(row[clientIdx] || "عميل غير محدد").trim();
-                    if (!groupData[key1]) groupData[key1] = { team: "العملاء", years: {} };
-                    if (!groupData[key1].years[year]) groupData[key1].years[year] = { sales: 0, returns: 0 };
-                    if (isReturn) groupData[key1].years[year].returns += Math.abs(amount);
-                    else groupData[key1].years[year].sales += amount;
+                    // تقرير العملاء بهيكل مشابه تماماً للمناديب (اسم العميل ثم الشهور تحته ثم إجمالي العميل)
+                    if (!groupData[clientName]) groupData[clientName] = { team: teamName, months: {} };
+                    if (!groupData[clientName].months[monthNum]) groupData[clientName].months[monthNum] = { years: {} };
+                    if (!groupData[clientName].months[monthNum].years[year]) groupData[clientName].months[monthNum].years[year] = { sales: 0, returns: 0 };
+                    if (isReturn) groupData[clientName].months[monthNum].years[year].returns += Math.abs(amount);
+                    else groupData[clientName].months[monthNum].years[year].sales += amount;
                 }
             });
 
@@ -552,7 +553,6 @@
                 return { title: "تقرير المناديب والفرق والشهور ونسب النمو", topHeaderHtml, subHeaderHtml, tableRowsHtml };
             
             } else if (type === 'months') {
-                // تقرير الشهور العامة مع اسم الشهر، بدون تصنيف، ومع نسب النمو والمؤشرات
                 let topHeaderHtml = `<tr>
                     <th rowspan="2">الشهر</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
@@ -596,31 +596,83 @@
                 return { title: "تقرير الشهور العامة", topHeaderHtml, subHeaderHtml, tableRowsHtml };
 
             } else {
-                let titleName = "تقرير العملاء";
-                let topHeaderHtml = `<tr><th rowspan="2">العميل</th><th rowspan="2">التصنيف</th>`;
+                // تقرير العملاء المحدث: العميل ثم الشهر ثم إجمالي العميل في الأسفل مع نسب النمو
+                let topHeaderHtml = `<tr>
+                    <th rowspan="2">العميل</th>
+                    <th rowspan="2">فريق المبيعات</th>
+                    <th rowspan="2">الشهر</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">سنة ${y}</th>`; });
-                topHeaderHtml += `<th colspan="3" style="background:#b45309;">الإجمالي الكلي</th></tr>`;
+                if (sortedYears.length >= 2) {
+                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">نسبة النمو (%)</th><th rowspan="2" style="background:#1e3a8a;">المؤشر</th>`;
+                }
+                topHeaderHtml += `</tr>`;
 
                 let subHeaderHtml = `<tr>`;
                 sortedYears.forEach(() => { subHeaderHtml += `<th>مبيعات</th><th>مرتجعات</th><th>صافي</th>`; });
-                subHeaderHtml += `<th>إجمالي مبيعات</th><th>إجمالي مرتجعات</th><th>إجمالي صافي</th></tr>`;
+                subHeaderHtml += `</tr>`;
 
                 let tableRowsHtml = '';
-                Object.keys(groupData).sort().forEach(k1 => {
-                    let item = groupData[k1];
-                    let itemTotalSales = 0, itemTotalReturns = 0;
-                    tableRowsHtml += `<tr><td style="text-align:right; font-weight:bold;">${k1}</td><td>${item.team}</td>`;
-                    sortedYears.forEach(y => {
-                        let yData = item.years[y] || { sales: 0, returns: 0 };
-                        let netY = yData.sales - yData.returns;
-                        tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                        itemTotalSales += yData.sales;
-                        itemTotalReturns += yData.returns;
+                Object.keys(groupData).sort().forEach(client => {
+                    let clientObj = groupData[client];
+                    let clientTotalsByYear = {};
+                    sortedYears.forEach(y => clientTotalsByYear[y] = { sales: 0, returns: 0 });
+
+                    let monthsKeys = Object.keys(clientObj.months).sort((a,b) => Number(a)-Number(b));
+                    monthsKeys.forEach(mNum => {
+                        let mData = clientObj.months[mNum];
+                        let monthName = mNum == 0 ? "غير محدد" : new Date(2026, mNum - 1, 1).toLocaleString('ar', { month: 'long' });
+                        
+                        tableRowsHtml += `<tr class="month-detail-row">
+                            <td style="text-align:right; font-weight:bold; color:#1e3a8a;">${client}</td>
+                            <td>${clientObj.team}</td>
+                            <td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
+                        
+                        let baseNet = 0, compNet = 0;
+                        sortedYears.forEach(y => {
+                            let yData = mData.years[y] || { sales: 0, returns: 0 };
+                            let netY = yData.sales - yData.returns;
+                            tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
+                            
+                            clientTotalsByYear[y].sales += yData.sales;
+                            clientTotalsByYear[y].returns += yData.returns;
+                            
+                            if(y === baseYear) baseNet = netY;
+                            if(y === compareYear) compNet = netY;
+                        });
+
+                        if (sortedYears.length >= 2) {
+                            let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
+                            let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
+                            let indicator = growth > 0 ? "📈 نمو مرتفع" : (growth === 0 ? "➖ مستقر" : "📉 انخفاض");
+                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
+                        }
+                        tableRowsHtml += `</tr>`;
                     });
-                    let itemNetTotal = itemTotalSales - itemTotalReturns;
-                    tableRowsHtml += `<td style="font-weight:bold;">${itemTotalSales.toLocaleString()}</td><td style="color:red; font-weight:bold;">${itemTotalReturns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${itemNetTotal.toLocaleString()}</td></tr>`;
+
+                    let clientBaseNet = clientTotalsByYear[baseYear] ? (clientTotalsByYear[baseYear].sales - clientTotalsByYear[baseYear].returns) : 0;
+                    let clientCompNet = clientTotalsByYear[compareYear] ? (clientTotalsByYear[compareYear].sales - clientTotalsByYear[compareYear].returns) : 0;
+                    let clientGrowth = clientBaseNet !== 0 ? ((clientCompNet - clientBaseNet) / Math.abs(clientBaseNet)) * 100 : (clientCompNet > 0 ? 100 : 0);
+                    let clientGrowthClass = clientGrowth >= 0 ? "growth-pos" : "growth-neg";
+                    let clientIndicator = clientGrowth > 0 ? "📈 نمو مرتفع" : (clientGrowth === 0 ? "➖ مستقر" : "📉 انخفاض");
+
+                    tableRowsHtml += `<tr class="rep-subtotal-row">
+                        <td style="text-align:right;">إجمالي العميل: ${client}</td>
+                        <td>${clientObj.team}</td>
+                        <td>الإجمالي العام</td>`;
+                    
+                    sortedYears.forEach(y => {
+                        let tData = clientTotalsByYear[y];
+                        let tNet = tData.sales - tData.returns;
+                        tableRowsHtml += `<td>${tData.sales.toLocaleString()}</td><td style="color:red;">${tData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${tNet.toLocaleString()}</td>`;
+                    });
+
+                    if (sortedYears.length >= 2) {
+                        tableRowsHtml += `<td class="${clientGrowthClass}">${clientGrowth.toFixed(1)}%</td><td class="${clientGrowthClass}">${clientIndicator}</td>`;
+                    }
+                    tableRowsHtml += `</tr>`;
                 });
-                return { title: titleName, topHeaderHtml, subHeaderHtml, tableRowsHtml };
+
+                return { title: "تقرير العملاء التحليلي الشامل", topHeaderHtml, subHeaderHtml, tableRowsHtml };
             }
         }
 
