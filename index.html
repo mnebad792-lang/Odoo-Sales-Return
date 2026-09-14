@@ -34,7 +34,6 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* تعديل الجدول الرئيسي ليأخذ العرض الكامل 100% بدون تمدد خاطئ */
         .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
         table { width: 100%; border-collapse: collapse; direction: rtl; table-layout: fixed; }
         
@@ -72,7 +71,7 @@
 
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
         #reportModalContainer table { width: max-content; table-layout: auto; }
-        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 8.5px !important; }
+        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 8px !important; padding: 4px 5px !important; }
     </style>
 </head>
 <body>
@@ -503,8 +502,8 @@
                         if (sortedYears.length >= 2) {
                             let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
                             let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
-                            let indicator = growth >= 10 ? "🚀 ممتاز" : (growth > 0 ? "📈 نمو جيد" : (growth === 0 ? "➖ مستقر" : "🔻 تراجع"));
-                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td>${indicator}</td>`;
+                            let indicator = growth > 0 ? "📈 نمو" : (growth === 0 ? "➖ مستقر" : "📉 انخفاض");
+                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
                         }
                         tableRowsHtml += `</tr>`;
                     });
@@ -513,7 +512,7 @@
                     let repCompNet = repTotalsByYear[compareYear] ? (repTotalsByYear[compareYear].sales - repTotalsByYear[compareYear].returns) : 0;
                     let repGrowth = repBaseNet !== 0 ? ((repCompNet - repBaseNet) / Math.abs(repBaseNet)) * 100 : (repCompNet > 0 ? 100 : 0);
                     let repGrowthClass = repGrowth >= 0 ? "growth-pos" : "growth-neg";
-                    let repIndicator = repGrowth >= 10 ? "🚀 ممتاز" : (repGrowth > 0 ? "📈 نمو جيد" : (repGrowth === 0 ? "➖ مستقر" : "🔻 تراجع"));
+                    let repIndicator = repGrowth > 0 ? "📈 نمو" : (repGrowth === 0 ? "➖ مستقر" : "📉 انخفاض");
 
                     tableRowsHtml += `<tr class="rep-subtotal-row">
                         <td style="text-align:right;">إجمالي المندوب: ${rep}</td>
@@ -527,7 +526,7 @@
                     });
 
                     if (sortedYears.length >= 2) {
-                        tableRowsHtml += `<td class="${repGrowthClass}">${repGrowth.toFixed(1)}%</td><td>${repIndicator}</td>`;
+                        tableRowsHtml += `<td class="${repGrowthClass}">${repGrowth.toFixed(1)}%</td><td class="${repGrowthClass}">${repIndicator}</td>`;
                     }
                     tableRowsHtml += `</tr>`;
                 });
