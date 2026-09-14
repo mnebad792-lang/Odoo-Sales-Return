@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام تحليل ومقارنة المبيعات - التحديث المركزي</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -102,7 +101,8 @@
         </div>
     </div>
     <script>
-        const GOOGLE_SHEET_CSV_URL = "https://script.google.com/macros/s/AKfycbyA3vu5HKMjq1-LdJYrQSULy7KpeWvpl3cNxctB9wgAvoRpulp0KHdgkOJgKQYy97UHKw/exec";
+        // رابط جوجل سكريبت الذي يرجع البيانات بصيغة JSON مباشرة
+        const GOOGLE_SHEET_JSON_URL = "https://script.google.com/macros/s/AKfycbyA3vu5HKMjq1-LdJYrQSULy7KpeWvpl3cNxctB9wgAvoRpulp0KHdgkOJgKQYy97UHKw/exec";
 
         let globalAllData = [];
         let tableHeaders = [];
@@ -112,41 +112,27 @@
         window.onload = function() { loadGoogleSheetData(); };
 
         function loadGoogleSheetData() {
-            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات مباشرة من الشيت...";
+            document.getElementById('statusText').innerText = "🔄 جاري سحب البيانات المحدثة مباشرة...";
             
-            // استخدام الوسيط الآمن لتجاوز قيود الاتصال بشكل نهائي
-            const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-
-            fetch(proxyUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error("Network response was not ok");
-                    return response.text();
-                })
-                .then(csvText => {
-                    Papa.parse(csvText, {
-                        header: false,
-                        skipEmptyLines: true,
-                        complete: function(results) {
-                            let rows = results.data;
-                            if (rows.length === 0) { alert('الملف فارغ.'); return; }
-                            tableHeaders = rows[0];
-                            globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
-                            document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
-                            detectColumnsAutomatically();
-                            extractYears();
-                            renderTableRows(globalAllData);
-                        },
-                        error: function(err) {
-                            console.error(err);
-                            document.getElementById('statusText').innerText = "❌ حدث خطأ في تحليل بيانات CSV.";
-                        }
-                    });
+            fetch(GOOGLE_SHEET_JSON_URL)
+                .then(response => response.json())
+                .then(rows => {
+                    if (!rows || rows.length === 0) { alert('الملف فارغ.'); return; }
+                    tableHeaders = rows[0];
+                    globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
+                    document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
+                    detectColumnsAutomatically();
+                    extractYears();
+                    renderTableRows(globalAllData);
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال. تأكد من نشر الشيت على الويب بصلاحية Anyone.";
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال بالسيرفر.";
                 });
         }
+
+        // ملاحظة هامة: يجب تحديث كود Google Apps Script ليرجع JSON هكذا:
+        // return ContentService.createTextOutput(JSON.stringify(sheet.getDataRange().getValues())).setMype(ContentService.MimeType.JSON);
 
         function detectColumnsAutomatically() {
             tableHeaders.forEach((h, idx) => {
