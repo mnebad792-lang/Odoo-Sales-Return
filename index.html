@@ -34,17 +34,20 @@
         
         .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
+        /* تعديل الجدول الرئيسي ليأخذ العرض الكامل 100% بدون تمدد خاطئ */
         .table-container { width: 100%; max-height: 520px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
-        table { width: max-content; min-width: 100%; border-collapse: collapse; direction: rtl; }
+        table { width: 100%; border-collapse: collapse; direction: rtl; table-layout: fixed; }
         
         th, td { 
-            padding: 6px 8px; 
+            padding: 5px 6px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 8.5px !important; 
+            font-size: 8px !important; 
             white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         th { 
@@ -54,9 +57,7 @@
             position: sticky; 
             top: 0; 
             z-index: 10; 
-            font-size: 8.5px !important; 
-            white-space: normal !important; 
-            word-wrap: break-word;
+            font-size: 8px !important; 
             line-height: 1.2;
             text-align: center;
         }
@@ -64,14 +65,14 @@
         tr:hover { background-color: #f1f5f9; }
         .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
         
-        /* تصميم الصفوف التجميعية للمندوب والإجمالي */
-        .rep-group-header { background-color: #e0f2fe !important; font-weight: bold; color: #0369a1; }
         .rep-subtotal-row { background-color: #dbeafe !important; font-weight: bold; border-top: 2px solid #3b82f6; color: #1e3a8a; }
         .month-detail-row { background-color: #ffffff; color: #334155; }
         .growth-pos { color: #16a34a; font-weight: bold; }
         .growth-neg { color: #dc2626; font-weight: bold; }
 
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
+        #reportModalContainer table { width: max-content; table-layout: auto; }
+        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 8.5px !important; }
     </style>
 </head>
 <body>
@@ -147,6 +148,7 @@
 
         <div class="table-container">
             <table id="mainTable">
+                <colgroup id="tableColGroup"></colgroup>
                 <thead id="tableHeader"></thead>
                 <tbody id="tableBody"></tbody>
             </table>
@@ -261,6 +263,7 @@
                 tableHeaders = [];
                 document.getElementById('tableHeader').innerHTML = '';
                 document.getElementById('tableBody').innerHTML = '';
+                document.getElementById('tableColGroup').innerHTML = '';
                 document.getElementById('rowCount').innerText = `عدد السجلات الإجمالي: 0`;
                 document.getElementById('statusText').innerText = `🗑️ تم مسح البيانات. يرجى رفع ملف جديد.`;
             }
@@ -338,22 +341,13 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            let colWidths = tableHeaders.map((h, colIdx) => {
-                let maxLen = String(h).length;
-                let sampleLimit = Math.min(rowsToRender.length, 200);
-                for (let i = 0; i < sampleLimit; i++) {
-                    let cellVal = String(rowsToRender[i][colIdx] || "");
-                    if (cellVal.length > maxLen) maxLen = cellVal.length;
-                }
-                let hL = String(h).toLowerCase();
-                if (hL.includes('المنتج') || hL.includes('العميل')) return Math.min(Math.max(maxLen * 8, 220), 400);
-                else if (hL.includes('فريق') || hL.includes('مندوب') || hL.includes('قائمة')) return Math.min(Math.max(maxLen * 8, 130), 200);
-                else return Math.min(Math.max(maxLen * 9, 85), 140);
-            });
+            let colGroupHtml = '';
+            tableHeaders.forEach(() => { colGroupHtml += `<col style="width: ${100 / tableHeaders.length}%;">`; });
+            document.getElementById('tableColGroup').innerHTML = colGroupHtml;
 
             let headerHtml = '<tr>';
-            tableHeaders.forEach((h, idx) => {
-                headerHtml += `<th style="width: ${colWidths[idx]}px; min-width: ${colWidths[idx]}px;">${h}</th>`;
+            tableHeaders.forEach((h) => {
+                headerHtml += `<th>${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -369,7 +363,7 @@
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td style="width: ${colWidths[idx]}px; min-width: ${colWidths[idx]}px;" title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
@@ -392,7 +386,7 @@
             let filtered = globalAllData.filter(row => {
                 if (clientQ && detectedIndices.clientIdx !== -1 && !String(row[detectedIndices.clientIdx] || "").toLowerCase().includes(clientQ)) return false;
                 if (productQ && detectedIndices.productIdx !== -1 && !String(row[detectedIndices.productIdx] || "").toLowerCase().includes(productQ)) return false;
-                if (repQ && detectedIndices.repIdx !== -1 && !String(row[repIdx] || "").toLowerCase().includes(repQ)) return false;
+                if (repQ && detectedIndices.repIdx !== -1 && !String(row[detectedIndices.repIdx] || "").toLowerCase().includes(repQ)) return false;
                 if (teamQ && detectedIndices.teamIdx !== -1 && !String(row[detectedIndices.teamIdx] || "").toLowerCase().includes(teamQ)) return false;
                 if (detectedIndices.dateIdx !== -1) {
                     let d = parseRowDate(row[detectedIndices.dateIdx]);
@@ -433,7 +427,6 @@
                 if (year !== "غير محدد") yearsSet.add(year);
 
                 if (type === 'reps') {
-                    // الترتيب المطلوب: المندوب -> الفريق -> الشهر
                     if (!groupData[repName]) groupData[repName] = { team: teamName, months: {} };
                     if (!groupData[repName].months[monthNum]) groupData[repName].months[monthNum] = { years: {} };
                     if (!groupData[repName].months[monthNum].years[year]) groupData[repName].months[monthNum].years[year] = { sales: 0, returns: 0 };
@@ -484,7 +477,6 @@
                     let repTotalsByYear = {};
                     sortedYears.forEach(y => repTotalsByYear[y] = { sales: 0, returns: 0 });
 
-                    // عرض الشهور للمندوب
                     let monthsKeys = Object.keys(repObj.months).sort((a,b) => Number(a)-Number(b));
                     monthsKeys.forEach(mNum => {
                         let mData = repObj.months[mNum];
@@ -517,7 +509,6 @@
                         tableRowsHtml += `</tr>`;
                     });
 
-                    // صف إجمالي المندوب أسفله مباشرة
                     let repBaseNet = repTotalsByYear[baseYear] ? (repTotalsByYear[baseYear].sales - repTotalsByYear[baseYear].returns) : 0;
                     let repCompNet = repTotalsByYear[compareYear] ? (repTotalsByYear[compareYear].sales - repTotalsByYear[compareYear].returns) : 0;
                     let repGrowth = repBaseNet !== 0 ? ((repCompNet - repBaseNet) / Math.abs(repBaseNet)) * 100 : (repCompNet > 0 ? 100 : 0);
@@ -543,7 +534,6 @@
 
                 return { title: "تقرير المناديب والفرق والشهور ونسب النمو", topHeaderHtml, subHeaderHtml, tableRowsHtml };
             } else {
-                // التقارير الأخرى (الشهور / العملاء)
                 let titleName = type === 'months' ? "تقرير الشهور العامة" : "تقرير العملاء";
                 let colName1 = type === 'months' ? "الشهر" : "العميل";
                 let topHeaderHtml = `<tr><th rowspan="2">${colName1}</th><th rowspan="2">التصنيف</th>`;
