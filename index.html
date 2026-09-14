@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام تحليل ومقارنة المبيعات والتقارير المتقدمة</title>
-    <!-- مكتبة Supabase للاتصال السحابي -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- مكتبة SheetJS لقراءة ملفات Excel و CSV -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>نظام تحليل ومقارنة المبيعات - التحديث المركزي</title>
+    <!-- مكتبة Papaparse لقراءة Google Sheets بشكل سريع جداً -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -21,7 +19,7 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 6px; direction: ltr; text-align: left; }
         .container { width: 100%; max-width: 100vw; margin: 0 auto; background: #ffffff; padding: 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); box-sizing: border-box; overflow: hidden; }
         h2 { text-align: center; color: var(--dark-color); margin-bottom: 8px; font-size: 15px; }
-        .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 6px 10px; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 8px 10px; border-radius: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
         #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
         .quick-search-panel { background: #f1f5f9; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid var(--border-color); }
         .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #334155; }
@@ -31,7 +29,7 @@
         .search-field-group input, .search-field-group select { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; direction: ltr; }
         .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 5px 8px; border-radius: 3px; font-weight: bold; cursor: pointer; font-size: 10px; width: 100%; }
         .actions-bar { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
-        button.action-btn, label.action-btn { padding: 5px 10px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
+        button.action-btn { padding: 5px 10px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
         .btn-compare { background-color: #b45309; font-size: 10px; padding: 5px 10px; }
         
@@ -42,34 +40,19 @@
         table { width: 100%; max-width: 100%; table-layout: fixed; border-collapse: collapse; direction: ltr; }
         
         th, td { 
-            padding: 5px 3px; 
+            padding: 4px 2px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-right: 1px solid #e2e8f0; 
             box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap !important; /* Shrink to Fit */
         }
 
-        td {
-            font-size: 10px !important;
-            white-space: normal !important; 
-            word-wrap: break-word;
-            line-height: 1.2;
-        }
-
-        th { 
-            background-color: var(--primary-color); 
-            color: white; 
-            font-weight: bold !important; 
-            font-size: 10px !important;
-            position: sticky; 
-            top: 0; 
-            z-index: 10; 
-            line-height: 1.2;
-            white-space: normal !important; 
-            word-wrap: break-word;
-            text-align: center;
-        }
+        td { font-size: 9.5px !important; line-height: 1.1; }
+        th { background-color: var(--primary-color); color: white; font-weight: bold !important; font-size: 9.5px !important; position: sticky; top: 0; z-index: 10; line-height: 1.1; text-align: center; }
 
         tr:hover { background-color: #f1f5f9; }
         .row-count { margin-top: 6px; font-weight: bold; color: #475569; font-size: 11px; }
@@ -81,23 +64,20 @@
 
         #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; direction: ltr; text-align: left; }
         #reportModalContainer table { width: 100%; table-layout: auto; }
-        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 10px !important; padding: 5px 6px !important; }
+        #reportModalContainer th, #reportModalContainer td { white-space: nowrap; font-size: 9.5px !important; padding: 4px 5px !important; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>نظام تحليل ومقارنة المبيعات والتقارير المتقدمة</h2>
+        <h2>نظام تحليل ومقارنة المبيعات والتقارير (متصل سحابياً بالتحديث المركزي)</h2>
 
-        <!-- شريط الحالة والتحكم بالبيانات والرفع -->
         <div class="upload-section">
             <div>
-                <span id="statusText">🔄 جاري الاتصال بقاعدة البيانات السحابية وجلب أحدث البيانات...</span>
+                <span id="statusText">🔄 جاري سحب البيانات المحدثة تلقائياً من الشيت المركزي...</span>
             </div>
-            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
-                <input type="file" id="excelFile" accept=".csv, .xlsx, .xls" style="font-size: 10px; padding: 3px;" />
-                <button class="action-btn" onclick="uploadExcelData()" style="background-color: var(--success-color);">📤 رفع ملف لـ Supabase</button>
-                <button class="action-btn" onclick="loadDataFromSupabase()" style="background-color: #0284c7;">🔄 تحديث البيانات</button>
+            <div>
+                <button class="action-btn btn-excel" onclick="loadGoogleSheetData()">🔄 تحديث البيانات الآن</button>
             </div>
         </div>
 
@@ -148,7 +128,6 @@
 
         <div class="actions-bar">
             <button class="action-btn btn-reset" onclick="resetFilter()">🔄 إعادة ضبط</button>
-            <button class="action-btn btn-excel" onclick="exportToExcel()">📊 تصدير Excel</button>
             <button class="action-btn btn-pdf" onclick="exportToPDFFile()">📥 تصدير PDF</button>
             <button class="action-btn btn-print" onclick="printReport()">🖨️ طباعة</button>
         </div>
@@ -164,7 +143,7 @@
         </div>
     </div>
 
-    <!-- نافذة التقارير التحليلية المتقدمة -->
+    <!-- نافذة التقارير -->
     <div id="reportModalContainer">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <h2 id="modalTitle" style="margin: 0; color: #1e3a8a; font-size: 15px;">⚖️ التقرير التحليلي</h2>
@@ -179,129 +158,53 @@
     </div>
 
     <script>
-        // إعدادات الاتصال بـ Supabase 
-        const SUPABASE_URL = 'https://gpzosgixzwqdxghquilb.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdwem9zZ2l4endxZHhnaHF1aWxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzODIxNTEsImV4cCI6MjEwNDk1ODE1MX0.7uON2Wz0cH1jsmlOy3s7d1qf3Hj9E7tVn2OWwUEwz4o';
-        
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // تم ربط الرابط الخاص بك مباشرة هنا
+        const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7maSHCCVG6ja2ELIB2YnLipnMnrq-qJEEvDHTyGyswWexDxWFYeOfCaHB3cRcQ/pub?gid=1841364794&single=true&output=csv";
 
         let globalAllData = [];
         let tableHeaders = [];
         let masterYears = new Set();
         let detectedIndices = { teamIdx: -1, repIdx: -1, clientIdx: -1, productIdx: -1, dateIdx: -1, invoiceDateIdx: -1, valIdx: -1, invoiceColIndex: -1 };
 
-        // جلب جميع السجلات دفعة وراء دفعة لتجاوز حد الـ 1000 سجل في Supabase
-        async function loadDataFromSupabase() {
-            document.getElementById('statusText').innerText = `🔄 جاري سحب كافة البيانات من السحابة (جاري جلب الدفعات)...`;
+        window.onload = function() {
+            loadGoogleSheetData();
+        };
+
+        function loadGoogleSheetData() {
+            document.getElementById('statusText').innerText = "🔄 جاري جلب أحدث التحديثات من Google Sheets...";
             
-            let allFetchedData = [];
-            let pageSize = 1000;
-            let page = 0;
-            let fetchMore = true;
-
-            try {
-                while (fetchMore) {
-                    let start = page * pageSize;
-                    let end = start + pageSize - 1;
-                    
-                    let { data, error } = await supabaseClient
-                        .from('odoo_sales_return') 
-                        .select('*')
-                        .range(start, end);
-
-                    if (error) throw error;
-
-                    if (data && data.length > 0) {
-                        allFetchedData = allFetchedData.concat(data);
-                        document.getElementById('statusText').innerText = `📥 جاري التحميل... تم سحب (${allFetchedData.length.toLocaleString()} سجل حتى الآن)`;
-                        if (data.length < pageSize) {
-                            fetchMore = false;
-                        } else {
-                            page++;
-                        }
-                    } else {
-                        fetchMore = false;
-                    }
-                }
-
-                if (allFetchedData.length > 0) {
-                    tableHeaders = Object.keys(allFetchedData[0]);
-                    globalAllData = allFetchedData.map(row => Object.values(row));
-
-                    document.getElementById('statusText').innerText = `✅ تم تحميل كافة البيانات بنجاح (${globalAllData.length.toLocaleString()} سجل).`;
-                    detectColumnsAutomatically();
-                    extractYears();
-                    renderTableRows(globalAllData);
-                } else {
-                    document.getElementById('statusText').innerText = `⚠️ لا توجد بيانات في جدول odoo_sales_return حالياً.`;
-                }
-            } catch (err) {
-                console.error('خطأ في سحب البيانات:', err);
-                document.getElementById('statusText').innerText = `❌ حدث خطأ أثناء سحب البيانات: ` + (err.message || err);
-            }
-        }
-
-        async function uploadExcelData() {
-            const fileInput = document.getElementById('excelFile');
-            const statusText = document.getElementById('statusText');
-            
-            if (fileInput.files.length === 0) {
-                alert('الرجاء اختيار ملف Excel أو CSV أولاً!');
-                return;
-            }
-
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-
-            reader.onload = async function(e) {
-                try {
-                    statusText.innerText = '🔄 جاري قراءة الملف وتحويل البيانات...';
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-                    if (jsonData.length === 0) {
-                        alert('الملف فارغ أو لا يحتوي على بيانات صحيحة.');
+            Papa.parse(GOOGLE_SHEET_CSV_URL, {
+                download: true,
+                header: false,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let rows = results.data;
+                    if (rows.length === 0) {
+                        alert('الملف فارغ.');
                         return;
                     }
 
-                    statusText.innerText = `⏳ جاري رفع ${jsonData.length} سجل إلى جدول odoo_sales_return (على دفعات)...`;
+                    tableHeaders = rows[0];
+                    globalAllData = rows.slice(1).filter(row => row.some(cell => cell !== ""));
 
-                    // رفع البيانات على دفعات لضمان عدم حدوث ضغط على الخادم
-                    let batchSize = 500;
-                    for (let i = 0; i < jsonData.length; i += batchSize) {
-                        let chunk = jsonData.slice(i, i + batchSize);
-                        let { error } = await supabaseClient.from('odoo_sales_return').insert(chunk);
-                        if (error) throw error;
-                        statusText.innerText = `⏳ جاري الرفع... تم رفع ${Math.min(i + batchSize, jsonData.length)} من ${jsonData.length} سجل`;
-                    }
-
-                    statusText.innerText = `✅ تم رفع وتحديث كافة البيانات بنجاح في قاعدة البيانات!`;
-                    fileInput.value = '';
-                    loadDataFromSupabase();
-
-                } catch (err) {
+                    document.getElementById('statusText').innerText = `✅ تم تحديث وعرض (${globalAllData.length.toLocaleString()} سجل) بنجاح من الشيت المركزي!`;
+                    detectColumnsAutomatically();
+                    extractYears();
+                    renderTableRows(globalAllData);
+                },
+                error: function(err) {
                     console.error(err);
-                    statusText.innerText = '❌ حدث خطأ أثناء الرفع: ' + (err.message || err);
+                    document.getElementById('statusText').innerText = "❌ حدث خطأ في الاتصال بالشيت. تأكد من إعدادات المشاركة.";
                 }
-            };
-
-            reader.readAsArrayBuffer(file);
+            });
         }
-
-        window.onload = function() {
-            loadDataFromSupabase();
-        };
 
         function detectColumnsAutomatically() {
             tableHeaders.forEach((h, idx) => {
                 let hStr = String(h || "").replace(/\s+/g, '').toLowerCase();
                 if (hStr.includes('team')) detectedIndices.teamIdx = idx;
                 if (hStr.includes('rep')) detectedIndices.repIdx = idx;
-                if (hStr.includes('customer')) detectedIndices.clientIdx = idx;
+                if (hStr.includes('customer') || hStr.includes('client')) detectedIndices.clientIdx = idx;
                 if (hStr.includes('product') || hStr.includes('item')) detectedIndices.productIdx = idx;
                 if (hStr.includes('orderdate') || hStr.includes('date')) detectedIndices.dateIdx = idx;
                 if (hStr.includes('invoicedate')) detectedIndices.invoiceDateIdx = idx;
@@ -318,11 +221,6 @@
 
         function parseRowDate(val) {
             if (!val && val !== 0) return null;
-            if (val instanceof Date && !isNaN(val)) return val;
-            if (typeof val === 'number' && val > 30000 && val < 60000) {
-                let utcDays = Math.floor(val - 25569);
-                return new Date(utcDays * 86400 * 1000);
-            }
             let strVal = String(val).trim();
             let parsed = new Date(strVal);
             if (!isNaN(parsed)) return parsed;
@@ -331,7 +229,7 @@
 
         function formatDateClean(val) {
             let d = parseRowDate(val);
-            if (!d) return String(val !== undefined ? val : '').replace(/\(.*\)/g, '').trim();
+            if (!d) return String(val !== undefined ? val : '').trim();
             let yy = d.getFullYear();
             let mm = String(d.getMonth() + 1).padStart(2, '0');
             let dd = String(d.getDate()).padStart(2, '0');
@@ -369,27 +267,15 @@
             if (tableHeaders.length === 0) return;
             
             let colGroupHtml = '';
-            tableHeaders.forEach((h) => {
-                let hStr = String(h || "").toLowerCase();
-                let widthPct = 5.2;
-                if (hStr.includes('product') || hStr.includes('item')) widthPct = 22;
-                else if (hStr.includes('customer')) widthPct = 20;
-                else if (hStr.includes('rep')) widthPct = 9;
-                else if (hStr.includes('team')) widthPct = 8;
-                else if (hStr.includes('date')) widthPct = 6.5;
-                
-                colGroupHtml += `<col style="width: ${widthPct}%;">`;
-            });
+            tableHeaders.forEach(() => { colGroupHtml += `<col>`; });
             document.getElementById('tableColGroup').innerHTML = colGroupHtml;
 
             let headerHtml = '<tr>';
-            tableHeaders.forEach((h) => {
-                headerHtml += `<th>${h}</th>`;
-            });
+            tableHeaders.forEach((h) => { headerHtml += `<th>${h}</th>`; });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
 
-            let chunkSize = 400, index = 0;
+            let chunkSize = 500, index = 0;
             let tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
@@ -468,7 +354,6 @@
                     if (!groupData[repName]) groupData[repName] = { team: teamName, months: {} };
                     if (!groupData[repName].months[monthNum]) groupData[repName].months[monthNum] = { years: {} };
                     if (!groupData[repName].months[monthNum].years[year]) groupData[repName].months[monthNum].years[year] = { sales: 0, returns: 0 };
-
                     if (isReturn) groupData[repName].months[monthNum].years[year].returns += Math.abs(amount);
                     else groupData[repName].months[monthNum].years[year].sales += amount;
                 } else if (type === 'months') {
@@ -492,19 +377,12 @@
             let compareYear = sortedYears[sortedYears.length > 1 ? sortedYears.length - 1 : 0];
 
             if (type === 'reps') {
-                let topHeaderHtml = `<tr>
-                    <th rowspan="2">Sales Rep</th>
-                    <th rowspan="2">Sales Team</th>
-                    <th rowspan="2">Month</th>`;
+                let topHeaderHtml = `<tr><th rowspan="2">Sales Rep</th><th rowspan="2">Sales Team</th><th rowspan="2">Month</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">Year ${y}</th>`; });
-                if (sortedYears.length >= 2) {
-                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
-                }
+                if (sortedYears.length >= 2) topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
+                topHeaderHtml += `</tr><tr>`;
+                sortedYears.forEach(() => { topHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
                 topHeaderHtml += `</tr>`;
-
-                let subHeaderHtml = `<tr>`;
-                sortedYears.forEach(() => { subHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
-                subHeaderHtml += `</tr>`;
 
                 let tableRowsHtml = '';
                 Object.keys(groupData).sort().forEach(rep => {
@@ -512,120 +390,78 @@
                     let repTotalsByYear = {};
                     sortedYears.forEach(y => repTotalsByYear[y] = { sales: 0, returns: 0 });
 
-                    let monthsKeys = Object.keys(repObj.months).sort((a,b) => Number(a)-Number(b));
-                    monthsKeys.forEach(mNum => {
+                    Object.keys(repObj.months).sort((a,b) => Number(a)-Number(b)).forEach(mNum => {
                         let mData = repObj.months[mNum];
                         let monthName = mNum == 0 ? "N/A" : new Date(2026, mNum - 1, 1).toLocaleString('en', { month: 'long' });
-                        
-                        tableRowsHtml += `<tr class="month-detail-row">
-                            <td style="text-align:left; font-weight:bold; color:#1e3a8a;">${rep}</td>
-                            <td>${repObj.team}</td>
-                            <td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
-                        
+                        tableRowsHtml += `<tr class="month-detail-row"><td style="text-align:left; font-weight:bold; color:#1e3a8a;">${rep}</td><td>${repObj.team}</td><td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
                         let baseNet = 0, compNet = 0;
                         sortedYears.forEach(y => {
                             let yData = mData.years[y] || { sales: 0, returns: 0 };
                             let netY = yData.sales - yData.returns;
                             tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                            
                             repTotalsByYear[y].sales += yData.sales;
                             repTotalsByYear[y].returns += yData.returns;
-                            
                             if(y === baseYear) baseNet = netY;
                             if(y === compareYear) compNet = netY;
                         });
-
                         if (sortedYears.length >= 2) {
                             let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
-                            let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
-                            let indicator = growth > 0 ? "📈 High Growth" : (growth === 0 ? "➖ Stable" : "📉 Decline");
-                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
+                            tableRowsHtml += `<td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth.toFixed(1)}%</td><td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth > 0 ? "📈 High" : "📉 Decline"}</td>`;
                         }
                         tableRowsHtml += `</tr>`;
                     });
 
-                    let repBaseNet = repTotalsByYear[baseYear] ? (repTotalsByYear[baseYear].sales - repTotalsByYear[baseYear].returns) : 0;
-                    let repCompNet = repTotalsByYear[compareYear] ? (repTotalsByYear[compareYear].sales - repTotalsByYear[compareYear].returns) : 0;
-                    let repGrowth = repBaseNet !== 0 ? ((repCompNet - repBaseNet) / Math.abs(repBaseNet)) * 100 : (repCompNet > 0 ? 100 : 0);
-                    let repGrowthClass = repGrowth >= 0 ? "growth-pos" : "growth-neg";
-                    let repIndicator = repGrowth > 0 ? "📈 High Growth" : (repGrowth === 0 ? "➖ Stable" : "📉 Decline");
+                    let repBase = repTotalsByYear[baseYear] ? (repTotalsByYear[baseYear].sales - repTotalsByYear[baseYear].returns) : 0;
+                    let repComp = repTotalsByYear[compareYear] ? (repTotalsByYear[compareYear].sales - repTotalsByYear[compareYear].returns) : 0;
+                    let repGrowth = repBase !== 0 ? ((repComp - repBase) / Math.abs(repBase)) * 100 : (repComp > 0 ? 100 : 0);
 
-                    tableRowsHtml += `<tr class="rep-subtotal-row">
-                        <td style="text-align:left;">Total Rep: ${rep}</td>
-                        <td>${repObj.team}</td>
-                        <td>Grand Total</td>`;
-                    
+                    tableRowsHtml += `<tr class="rep-subtotal-row"><td style="text-align:left;">Total: ${rep}</td><td>${repObj.team}</td><td>Grand Total</td>`;
                     sortedYears.forEach(y => {
-                        let tData = repTotalsByYear[y];
-                        let tNet = tData.sales - tData.returns;
-                        tableRowsHtml += `<td>${tData.sales.toLocaleString()}</td><td style="color:red;">${tData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${tNet.toLocaleString()}</td>`;
+                        let t = repTotalsByYear[y];
+                        tableRowsHtml += `<td>${t.sales.toLocaleString()}</td><td style="color:red;">${t.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${(t.sales - t.returns).toLocaleString()}</td>`;
                     });
-
-                    if (sortedYears.length >= 2) {
-                        tableRowsHtml += `<td class="${repGrowthClass}">${repGrowth.toFixed(1)}%</td><td class="${repGrowthClass}">${repIndicator}</td>`;
-                    }
+                    if (sortedYears.length >= 2) tableRowsHtml += `<td class="${repGrowth >= 0 ? "growth-pos" : "growth-neg"}">${repGrowth.toFixed(1)}%</td><td class="${repGrowth >= 0 ? "growth-pos" : "growth-neg"}">${repGrowth > 0 ? "📈 High" : "📉 Decline"}</td>`;
                     tableRowsHtml += `</tr>`;
                 });
-
-                return { title: "Sales Reps & Teams Growth Report", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+                return { title: "Sales Reps & Teams Growth Report", topHeaderHtml, subHeaderHtml: "", tableRowsHtml };
             
             } else if (type === 'months') {
-                let topHeaderHtml = `<tr>
-                    <th rowspan="2">Month</th>`;
+                let topHeaderHtml = `<tr><th rowspan="2">Month</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">Year ${y}</th>`; });
-                if (sortedYears.length >= 2) {
-                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
-                }
+                if (sortedYears.length >= 2) topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
+                topHeaderHtml += `</tr><tr>`;
+                sortedYears.forEach(() => { topHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
                 topHeaderHtml += `</tr>`;
-
-                let subHeaderHtml = `<tr>`;
-                sortedYears.forEach(() => { subHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
-                subHeaderHtml += `</tr>`;
 
                 let tableRowsHtml = '';
                 Object.keys(groupData).sort((a,b)=>Number(a)-Number(b)).forEach(k => {
                     let mObj = groupData[k];
-                    let mNum = mObj.monthNum;
-                    let monthName = mNum == 0 ? "N/A" : new Date(2026, mNum - 1, 1).toLocaleString('en', { month: 'long' });
-
+                    let monthName = mObj.monthNum == 0 ? "N/A" : new Date(2026, mObj.monthNum - 1, 1).toLocaleString('en', { month: 'long' });
                     let baseNet = 0, compNet = 0;
-                    tableRowsHtml += `<tr class="month-detail-row">
-                        <td style="font-weight:bold; background:#f8fafc; color:#1e3a8a;">${monthName}</td>`;
 
+                    tableRowsHtml += `<tr class="month-detail-row"><td style="font-weight:bold; background:#f8fafc; color:#1e3a8a;">${monthName}</td>`;
                     sortedYears.forEach(y => {
                         let yData = mObj.years[y] || { sales: 0, returns: 0 };
                         let netY = yData.sales - yData.returns;
                         tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                        
                         if(y === baseYear) baseNet = netY;
                         if(y === compareYear) compNet = netY;
                     });
-
                     if (sortedYears.length >= 2) {
                         let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
-                        let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
-                        let indicator = growth > 0 ? "📈 High Growth" : (growth === 0 ? "➖ Stable" : "📉 Decline");
-                        tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
+                        tableRowsHtml += `<td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth.toFixed(1)}%</td><td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth > 0 ? "📈 High" : "📉 Decline"}</td>`;
                     }
                     tableRowsHtml += `</tr>`;
                 });
-
-                return { title: "General Monthly Report", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+                return { title: "General Monthly Report", topHeaderHtml, subHeaderHtml: "", tableRowsHtml };
 
             } else {
-                let topHeaderHtml = `<tr>
-                    <th rowspan="2">Customer</th>
-                    <th rowspan="2">Sales Team</th>
-                    <th rowspan="2">Month</th>`;
+                let topHeaderHtml = `<tr><th rowspan="2">Customer</th><th rowspan="2">Sales Team</th><th rowspan="2">Month</th>`;
                 sortedYears.forEach(y => { topHeaderHtml += `<th colspan="3" style="background:#0284c7;">Year ${y}</th>`; });
-                if (sortedYears.length >= 2) {
-                    topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
-                }
+                if (sortedYears.length >= 2) topHeaderHtml += `<th rowspan="2" style="background:#b45309;">Growth (%)</th><th rowspan="2" style="background:#1e3a8a;">Indicator</th>`;
+                topHeaderHtml += `</tr><tr>`;
+                sortedYears.forEach(() => { topHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
                 topHeaderHtml += `</tr>`;
-
-                let subHeaderHtml = `<tr>`;
-                sortedYears.forEach(() => { subHeaderHtml += `<th>Sales</th><th>Returns</th><th>Net</th>`; });
-                subHeaderHtml += `</tr>`;
 
                 let tableRowsHtml = '';
                 Object.keys(groupData).sort().forEach(client => {
@@ -633,76 +469,53 @@
                     let clientTotalsByYear = {};
                     sortedYears.forEach(y => clientTotalsByYear[y] = { sales: 0, returns: 0 });
 
-                    let monthsKeys = Object.keys(clientObj.months).sort((a,b) => Number(a)-Number(b));
-                    monthsKeys.forEach(mNum => {
+                    Object.keys(clientObj.months).sort((a,b) => Number(a)-Number(b)).forEach(mNum => {
                         let mData = clientObj.months[mNum];
                         let monthName = mNum == 0 ? "N/A" : new Date(2026, mNum - 1, 1).toLocaleString('en', { month: 'long' });
-                        
-                        tableRowsHtml += `<tr class="month-detail-row">
-                            <td style="text-align:left; font-weight:bold; color:#1e3a8a;">${client}</td>
-                            <td>${clientObj.team}</td>
-                            <td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
-                        
+                        tableRowsHtml += `<tr class="month-detail-row"><td style="text-align:left; font-weight:bold; color:#1e3a8a;">${client}</td><td>${clientObj.team}</td><td style="font-weight:bold; background:#f8fafc;">${monthName}</td>`;
                         let baseNet = 0, compNet = 0;
                         sortedYears.forEach(y => {
                             let yData = mData.years[y] || { sales: 0, returns: 0 };
                             let netY = yData.sales - yData.returns;
                             tableRowsHtml += `<td>${yData.sales.toLocaleString()}</td><td style="color:red;">${yData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${netY.toLocaleString()}</td>`;
-                            
                             clientTotalsByYear[y].sales += yData.sales;
                             clientTotalsByYear[y].returns += yData.returns;
-                            
                             if(y === baseYear) baseNet = netY;
                             if(y === compareYear) compNet = netY;
                         });
-
                         if (sortedYears.length >= 2) {
                             let growth = baseNet !== 0 ? ((compNet - baseNet) / Math.abs(baseNet)) * 100 : (compNet > 0 ? 100 : 0);
-                            let growthClass = growth >= 0 ? "growth-pos" : "growth-neg";
-                            let indicator = growth > 0 ? "📈 High Growth" : (growth === 0 ? "➖ Stable" : "📉 Decline");
-                            tableRowsHtml += `<td class="${growthClass}">${growth.toFixed(1)}%</td><td class="${growthClass}">${indicator}</td>`;
+                            tableRowsHtml += `<td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth.toFixed(1)}%</td><td class="${growth >= 0 ? "growth-pos" : "growth-neg"}">${growth > 0 ? "📈 High" : "📉 Decline"}</td>`;
                         }
                         tableRowsHtml += `</tr>`;
                     });
 
-                    let clientBaseNet = clientTotalsByYear[baseYear] ? (clientTotalsByYear[baseYear].sales - clientTotalsByYear[baseYear].returns) : 0;
-                    let clientCompNet = clientTotalsByYear[compareYear] ? (clientTotalsByYear[compareYear].sales - clientTotalsByYear[compareYear].returns) : 0;
-                    let clientGrowth = clientBaseNet !== 0 ? ((clientCompNet - clientBaseNet) / Math.abs(clientBaseNet)) * 100 : (clientCompNet > 0 ? 100 : 0);
-                    let clientGrowthClass = clientGrowth >= 0 ? "growth-pos" : "growth-neg";
-                    let clientIndicator = clientGrowth > 0 ? "📈 High Growth" : (clientGrowth === 0 ? "➖ Stable" : "📉 Decline");
+                    let cBase = clientTotalsByYear[baseYear] ? (clientTotalsByYear[baseYear].sales - clientTotalsByYear[baseYear].returns) : 0;
+                    let cComp = clientTotalsByYear[compareYear] ? (clientTotalsByYear[compareYear].sales - clientTotalsByYear[compareYear].returns) : 0;
+                    let cGrowth = cBase !== 0 ? ((cComp - cBase) / Math.abs(cBase)) * 100 : (cComp > 0 ? 100 : 0);
 
-                    tableRowsHtml += `<tr class="rep-subtotal-row">
-                        <td style="text-align:left;">Total Customer: ${client}</td>
-                        <td>${clientObj.team}</td>
-                        <td>Grand Total</td>`;
-                    
+                    tableRowsHtml += `<tr class="rep-subtotal-row"><td style="text-align:left;">Total: ${client}</td><td>${clientObj.team}</td><td>Grand Total</td>`;
                     sortedYears.forEach(y => {
-                        let tData = clientTotalsByYear[y];
-                        let tNet = tData.sales - tData.returns;
-                        tableRowsHtml += `<td>${tData.sales.toLocaleString()}</td><td style="color:red;">${tData.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${tNet.toLocaleString()}</td>`;
+                        let t = clientTotalsByYear[y];
+                        tableRowsHtml += `<td>${t.sales.toLocaleString()}</td><td style="color:red;">${t.returns.toLocaleString()}</td><td style="color:green; font-weight:bold;">${(t.sales - t.returns).toLocaleString()}</td>`;
                     });
-
-                    if (sortedYears.length >= 2) {
-                        tableRowsHtml += `<td class="${clientGrowthClass}">${clientGrowth.toFixed(1)}%</td><td class="${clientGrowthClass}">${clientIndicator}</td>`;
-                    }
+                    if (sortedYears.length >= 2) tableRowsHtml += `<td class="${cGrowth >= 0 ? "growth-pos" : "growth-neg"}">${cGrowth.toFixed(1)}%</td><td class="${cGrowth >= 0 ? "growth-pos" : "growth-neg"}">${cGrowth > 0 ? "📈 High" : "📉 Decline"}</td>`;
                     tableRowsHtml += `</tr>`;
                 });
-
-                return { title: "Comprehensive Customer Analytics Report", topHeaderHtml, subHeaderHtml, tableRowsHtml };
+                return { title: "Comprehensive Customer Analytics Report", topHeaderHtml, subHeaderHtml: "", tableRowsHtml };
             }
         }
 
         function openReportModal(type) {
-            if (globalAllData.length === 0) { alert("Data is loading from the cloud, please wait a few seconds."); return; }
+            if (globalAllData.length === 0) { alert("Data is loading..."); return; }
             let res = generateReport(type);
             document.getElementById('modalTitle').innerText = `⚖️ ${res.title}`;
-            document.getElementById('popupHeader').innerHTML = res.topHeaderHtml + res.subHeaderHtml;
+            document.getElementById('popupHeader').innerHTML = res.topHeaderHtml;
             document.getElementById('popupBody').innerHTML = res.tableRowsHtml;
             document.getElementById('reportModalContainer').style.display = 'block';
         }
 
         function closeReportModal() { document.getElementById('reportModalContainer').style.display = 'none'; }
-        function exportToExcel() { alert("Excel export is available through detailed reports and printing."); }
         function exportToPDFFile() { window.print(); }
         function printReport() { window.print(); }
     </script>
