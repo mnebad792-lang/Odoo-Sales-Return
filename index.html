@@ -14,43 +14,45 @@
             --bg-color: #f8fafc;
             --border-color: #cbd5e1;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 6px; }
-        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        h2 { text-align: center; color: var(--dark-color); margin-bottom: 8px; font-size: 15px; }
-        .upload-section { background: #eff6ff; border: 2px dashed #3b82f6; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        #statusText { font-weight: bold; color: #1e40af; font-size: 11px; }
-        .quick-search-panel { background: #f1f5f9; padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--border-color); }
-        .quick-search-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #334155; }
-        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; align-items: flex-end; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--dark-color); margin: 0; padding: 4px; }
+        .container { max-width: 100%; margin: 0 auto; background: #ffffff; padding: 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: var(--dark-color); margin-bottom: 6px; font-size: 13px; }
+        .upload-section { background: #eff6ff; border: 1.5px dashed #3b82f6; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+        #statusText { font-weight: bold; color: #1e40af; font-size: 10px; }
+        .quick-search-panel { background: #f1f5f9; padding: 6px; border-radius: 4px; margin-bottom: 6px; border: 1px solid var(--border-color); }
+        .quick-search-title { font-weight: bold; font-size: 10px; margin-bottom: 3px; color: #334155; }
+        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 4px; align-items: flex-end; }
         .search-field-group { display: flex; flex-direction: column; }
-        .search-field-group label { font-size: 9px; font-weight: bold; margin-bottom: 2px; color: #475569; }
-        .search-field-group input, .search-field-group select { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 10px; background: white; outline: none; width: 100%; box-sizing: border-box; }
-        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 10px; height: 25px; width: 100%; }
-        .actions-bar { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
-        button.action-btn, label.action-btn { padding: 4px 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; }
+        .search-field-group label { font-size: 8.5px; font-weight: bold; margin-bottom: 1px; color: #475569; }
+        .search-field-group input, .search-field-group select { padding: 3px 4px; border: 1px solid var(--border-color); border-radius: 3px; font-size: 9px; background: white; outline: none; width: 100%; box-sizing: border-box; }
+        .btn-search-action { background-color: var(--primary-color); color: white; border: none; padding: 3px 6px; border-radius: 3px; font-weight: bold; cursor: pointer; font-size: 9px; height: 22px; width: 100%; }
+        .actions-bar { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+        button.action-btn, label.action-btn { padding: 3px 8px; border: none; border-radius: 3px; font-weight: bold; cursor: pointer; color: white; font-size: 9.5px; display: inline-flex; align-items: center; gap: 3px; }
         .btn-reset { background-color: #64748b; } .btn-excel { background-color: var(--success-color); } .btn-pdf { background-color: #0284c7; } .btn-print { background-color: #4f46e5; } 
-        .btn-compare { background-color: #d97706; font-size: 10px; padding: 5px 10px; }
+        .btn-compare { background-color: #d97706; font-size: 9.5px; padding: 4px 8px; }
         
-        .reports-buttons-grid { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+        .reports-buttons-grid { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; margin: 6px 0; }
         
-        /* تعديل الحاوية لعرض جميع الأعمدة بوضوح */
-        .table-container { width: 100%; overflow-x: auto; max-height: 520px; border: 1px solid var(--border-color); border-radius: 6px; background: white; }
-        table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        /* إزالة السكرول الأفقي وضبط الجدول ليتسع للشاشة بالكامل */
+        .table-container { width: 100%; overflow-x: hidden; max-height: 520px; border: 1px solid var(--border-color); border-radius: 4px; background: white; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         
         th, td { 
-            padding: 5px 6px; 
+            padding: 3px 4px; 
             text-align: center; 
             vertical-align: middle; 
             border-bottom: 1px solid #e2e8f0; 
             border-left: 1px solid #e2e8f0; 
-            font-size: 7.5pt !important; 
+            font-size: 6pt !important; /* تقليص حجم الخط ليناسب كل الأعمدة */
             white-space: nowrap !important; 
+            overflow: hidden;
+            text-overflow: ellipsis; /* قص النصوص الطويلة بوضع نقط ثلاثية للحفاظ على النظام */
         }
 
-        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; }
+        th { background-color: var(--dark-color); color: white; font-weight: bold !important; position: sticky; top: 0; z-index: 10; font-size: 6.5pt !important; }
         tr:hover { background-color: #f8fafc; }
-        .row-count { margin-top: 4px; font-weight: bold; color: #475569; font-size: 10px; }
-        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 12px; box-sizing: border-box; overflow-y: auto; }
+        .row-count { margin-top: 3px; font-weight: bold; color: #475569; font-size: 9.5px; }
+        #reportModalContainer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 9998; padding: 10px; box-sizing: border-box; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -62,7 +64,7 @@
             <div>
                 <span id="statusText">📁 جاري التحقق من قاعدة البيانات المحلية...</span>
             </div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                 <label class="action-btn" style="background-color: #16a34a; cursor: pointer;">
                     📁 تحديث / رفع ملف جديد <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileSelect(event)">
                 </label>
@@ -134,11 +136,11 @@
 
     <!-- نافذة التقارير التحليلية المتقدمة -->
     <div id="reportModalContainer">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2 id="modalTitle" style="margin: 0; color: #2563eb; font-size: 14px;">⚖️ التقرير التحليلي</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h2 id="modalTitle" style="margin: 0; color: #2563eb; font-size: 13px;">⚖️ التقرير التحليلي</h2>
             <button class="action-btn btn-reset" onclick="closeReportModal()">✖ العودة</button>
         </div>
-        <div class="table-container" style="max-height: 72vh;">
+        <div class="table-container" style="max-height: 75vh;">
             <table id="popupTable">
                 <thead id="popupHeader"></thead>
                 <tbody id="popupBody"></tbody>
@@ -317,10 +319,12 @@
         function renderTableRows(rowsToRender) {
             if (tableHeaders.length === 0) return;
             
-            // عرض الأعمدة بترتيب الملف الأصلي بالكامل دون إخفاء أي عمود
+            // حساب نسبة العرض المتساوية لكل الأعمدة لتتطابق مع الشاشة تماماً
+            let colWidthPercent = (100 / tableHeaders.length).toFixed(2);
+            
             let headerHtml = '<tr>';
             tableHeaders.forEach((h, idx) => {
-                headerHtml += `<th>${h}</th>`;
+                headerHtml += `<th style="width: ${colWidthPercent}%;">${h}</th>`;
             });
             headerHtml += '</tr>';
             document.getElementById('tableHeader').innerHTML = headerHtml;
@@ -336,7 +340,7 @@
                     bodyHtml += '<tr>';
                     tableHeaders.forEach((h, idx) => {
                         let displayVal = formatCellData(row[idx], h, idx);
-                        bodyHtml += `<td title="${displayVal}">${displayVal}</td>`;
+                        bodyHtml += `<td style="width: ${colWidthPercent}%;" title="${displayVal}">${displayVal}</td>`;
                     });
                     bodyHtml += '</tr>';
                 });
